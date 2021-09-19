@@ -126,12 +126,12 @@ def main():
 
     tables = get_tables(database)
 
-    st.write("### Graph view")
+    # st.write("### Graph view")
 
-    with st.spinner(f"Converting to graph data..."):
-        config, nodes, edges = get_graph_data(tables, max_tables=10)
+    # with st.spinner(f"Converting to graph data..."):
+    #     config, nodes, edges = get_graph_data(tables, max_tables=10)
 
-    agraph(nodes, edges, config)
+    # agraph(nodes, edges, config)
 
     st.write("### Table view")
 
