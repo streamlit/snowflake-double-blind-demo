@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 streamlit = "*"
 snowflake-connector-python = "*"
+
 # requests = "*"
 # google-cloud-bigquery = "*"
 # google-cloud-storage = "*"
