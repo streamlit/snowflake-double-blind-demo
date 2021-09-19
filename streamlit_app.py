@@ -28,32 +28,32 @@ INFORMATION_SCHEMA_TABLES_COLUMNS = [
 ]
 
 
+@st.cache(
+    allow_output_mutation=True,
+    hash_funcs={"_thread.RLock": lambda _: None},
+)
+def get_connector():
+    """Returns the snowflake connector. Uses st.cache to only run once."""
+    return snowflake.connector.connect(**st.secrets["snowflake"])
+
+
 def main():
-
-    # Initialize connection.
-    # Uses st.cache to only run once.
-    @st.cache(
-        allow_output_mutation=True,
-        hash_funcs={"_thread.RLock": lambda _: None},
-        show_spinner=False,
-    )
-    def init_connection():
-        return snowflake.connector.connect(**st.secrets["snowflake"])
-
+    # Get the snowflake connector. Display an error if anything went wrong.
     try:
-        conn = init_connection()
+        conn = get_connector()
         st.sidebar.success("🎉 We have successfully loaded your Snowflake credentials")
-    except Exception as e:
+    except:
+        snowflake_tutorial = (
+            "https://docs.streamlit.io/en/latest/tutorial/snowflake.html"
+        )
         st.sidebar.error(
-            """Couldn't load your credentials.  
-            Did you have a look at our [tutorial on connecting to Snowflake](https://docs.streamlit.io/en/latest/tutorial/snowflake.html)?
+            f"""
+            Couldn't load your credentials.  
+            Did you have a look at our 
+            [tutorial on connecting to Snowflake]({snowflake_tutorial})?
             """
         )
-
-        with st.sidebar.expander("👇 Read more about the error"):
-            st.write(e)
-
-        return ""
+        raise
 
     # Perform query.
     # Uses st.cache to only rerun when the query changes or after 10 min.
@@ -103,8 +103,6 @@ def main():
         .sort_values(by="BYTES", ascending=False)
         .head(10)
     )
-
-    return ""
 
 
 if __name__ == "__main__":
