@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 import snowflake.connector
 
-# from streamlit_agraph import agraph, TripleStore, Config, Node, Edge
-
 INFORMATION_SCHEMA_TABLES_COLUMNS = [
     "TABLE_CATALOG",
     "TABLE_SCHEMA",
@@ -28,39 +26,6 @@ INFORMATION_SCHEMA_TABLES_COLUMNS = [
     "AUTO_CLUSTERING_ON",
     "COMMENT",
 ]
-
-
-def get_graph_data(tables, max_schemas=5, max_tables=15):
-
-    # Add schemas
-    schema_subset = tables.TABLE_SCHEMA.unique()[:max_schemas]
-    nodes = [Node(id=schema, size=200, color="red") for schema in schema_subset]
-
-    # Add tables
-    # TODO: Better filtering of max_tables. Should be max_tables per schema. `groupby().sample()` etc.
-    tables_subset = tables.TABLE_NAME.unique()[:max_tables]
-    nodes += [Node(id=table, size=100, color="blue") for table in tables_subset]
-
-    # Add schema -> table
-    edges = [
-        Edge(source=schema, target=table)
-        for schema, table in tables[["TABLE_SCHEMA", "TABLE_NAME"]]
-        .drop_duplicates()
-        .values
-        if schema in schema_subset and table in tables_subset
-    ]
-
-    config = Config(
-        height=600,
-        width=600,
-        nodeHighlightBehavior=True,
-        highlightColor="#F7A7A6",
-        directed=True,
-        collapsible=True,
-        initialZoom=1.5,
-    )
-
-    return config, nodes, edges
 
 
 def main():
@@ -125,13 +90,6 @@ def main():
     st.write(f"Database: `{database}`")
 
     tables = get_tables(database)
-
-    # st.write("### Graph view")
-
-    # with st.spinner(f"Converting to graph data..."):
-    #     config, nodes, edges = get_graph_data(tables, max_tables=10)
-
-    # agraph(nodes, edges, config)
 
     st.write("### Table view")
 
