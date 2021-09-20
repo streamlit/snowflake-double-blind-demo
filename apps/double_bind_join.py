@@ -124,6 +124,6 @@ def main():
   
   st.dataframe(df, height=720)
 
-st.title("Snowflake hash match Demo")
+st.title("Double-Bind Join")
 init_state()
 main()  

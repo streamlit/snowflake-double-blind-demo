@@ -26,7 +26,7 @@ class BaseConn:
         return self.get_engine().execute(sql)
 
     def stream(self, sql, fetch_size=10000, dtype="namedtuple"):
-        result = self.get_engine().execute(sql)
+        result = self.execute(sql)
         self._fields = [key.lower() for key in result.keys()]
         counter = 0
 

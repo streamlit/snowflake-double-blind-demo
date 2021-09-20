@@ -160,6 +160,6 @@ def main():
       df = get_tables_info(conn, state.schema)
       st.dataframe(df, height=720, width=1420)
 
-st.title("Snowflake Demo")
+st.title("Schema Browser")
 init_state()
 main()

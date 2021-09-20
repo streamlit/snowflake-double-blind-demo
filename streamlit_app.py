@@ -4,9 +4,10 @@ from collections import OrderedDict
 
 PAGES = OrderedDict(
     [
-        ("Hash Match", "apps/hash_match.py"),
-        ("Schema Explorer", "apps/schema_explorer.py"),
-        ("Synthetic Data", "apps/synthetic_data.py"),
+        ("Intro", "apps/intro.py"),
+        ("Synthetic data generator", "apps/synthetic_data.py"),
+        ("Double-blind join", "apps/double_bind_join.py"),
+        ("Schema browser", "apps/schema_browser.py"),
     ]
 )
 
