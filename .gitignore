@@ -1,1 +1,2 @@
-.streamlit/
+# Credientials
+.streamlit/secrets.toml
