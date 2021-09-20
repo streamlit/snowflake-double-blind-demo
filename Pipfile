@@ -23,6 +23,7 @@ snowflake-connector-python = "*"
 pyyaml = "*"
 # streamlit-pandas-profiling = "*"
 sqlalchemy = "*"
+snowflake-sqlalchemy = "*"
 
 [dev-packages]
 black = "*"  # Pretty formatting of Python code
