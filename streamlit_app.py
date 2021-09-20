@@ -34,7 +34,7 @@ INFORMATION_SCHEMA_TABLES_COLUMNS = [
 )
 def get_connector():
     """Returns the snowflake connector. Uses st.cache to only run once."""
-    return snowflake.connector.connect(**st.secrets["snowflake"])
+    return snowflake.connector.connect(**st.secrets["snowflake"], client_session_keep_alive=True)
 
 
 def main():
