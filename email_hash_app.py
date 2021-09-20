@@ -117,6 +117,7 @@ def main():
       df = pd.DataFrame(rows, columns=columns)
     st.dataframe(df, height=720)
 
-st.title("Snowflake Email hash Demo")
-init_state()
-main()
+if __name__ == "__main__":
+  st.title("Snowflake Email hash Demo")
+  init_state()
+  main()  
