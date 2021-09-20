@@ -5,25 +5,10 @@ name = "pypi"
 
 [packages]
 streamlit = "*"
-snowflake-connector-python = "*"
-# requests = "*"
-# google-cloud-bigquery = "*"
-# google-cloud-storage = "*"
-# sendgrid = "*"
-# markdown = "*"
-# gspread = "*"
-# oauth2client = "*"
-# hubspot-api-client = "==3.8.2"
-# grnhse-api = "*"
-# streamlit-aggrid = "*"
-# matplotlib = "*"
-# streamlit-agraph = "*"
-# google-api-python-client = "*"
-# gsheetsdb = "*"
+snowflake-connector-python = "2.3.6"
 pyyaml = "*"
-# streamlit-pandas-profiling = "*"
-sqlalchemy = "*"
-snowflake-sqlalchemy = "*"
+sqlalchemy = "1.4.15"
+snowflake-sqlalchemy = "1.2.4"
 
 [dev-packages]
 black = "*"  # Pretty formatting of Python code
