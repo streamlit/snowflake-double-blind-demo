@@ -124,57 +124,6 @@ def main():
   
   st.dataframe(df, height=720)
 
-def main_old():
-  do_teardown = do_setup = False
-  conn = get_connection()
-  
-  status = st.empty()
-  col1, col2 = st.columns(2)
-
-  with col1:
-    form = st.form(key='input-form')
-    if st.session_state.dbs_created:
-      form.write("""## Existing Database Names""")
-      database1 = form.text_input('Database 1 Name')
-      database2 = form.text_input('Database 2 Name')
-      do_teardown = form.form_submit_button('Teardown', "destroy demo databases")
-    else:
-      form.write("""## Input Database Names""")
-      database1 = form.text_input('Database 1 Name')
-      database2 = form.text_input('Database 2 Name')
-      do_setup = form.form_submit_button('Setup' ,'setup demo databases')
-
-
-  if do_setup:
-    status.text('Creating databases with email data')
-    if database1 and database2:
-      setup(conn, database1, database2)
-      status.text('')
-      st.session_state.dbs_created = True
-      st.session_state.database1 = database1
-      st.session_state.database2 = database2
-    else:
-      status.write('*Invalid database names*')
-
-  if do_teardown:
-    status.text('Destroying databases..')
-    tear_down(conn, database1, database2)
-    status.text('')
-    st.session_state.dbs_created = False
-    st.session_state.database1 = ''
-    st.session_state.database2 = ''
-  
-  with col2:
-    columns = [] 
-    rows = []
-    df = pd.DataFrame(rows, columns=columns)
-    if st.button("Refresh") or do_setup:
-      st.write("These are matching emails from two different email tables")
-      df = query_email_data(conn, st.session_state.database1, st.session_state.database2)
-    if do_teardown:
-      df = pd.DataFrame(rows, columns=columns)
-    st.dataframe(df, height=720)
-
 st.title("Snowflake hash match Demo")
 init_state()
 main()  
