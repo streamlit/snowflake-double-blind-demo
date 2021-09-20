@@ -18,10 +18,11 @@ def main():
     # st.set_page_config(
     #     page_title=APP_TITLE, layout="wide", page_icon=":snowflake:"
     # )
-    st.sidebar.image(
-        "https://streamlit.io/images/brand/streamlit-mark-color.png", width=50
-    )
-    st.sidebar.title(APP_TITLE)
+
+    # Display the snowflake logo nicely.
+    col1, col2 = st.sidebar.columns((1, 9))
+    col1.image("snowflake-logo-transparent.png", width=25)
+    col2.markdown(f"**{APP_TITLE}**")
 
     # Infer selected page from query params.
     query_params = st.experimental_get_query_params()
@@ -55,4 +56,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
