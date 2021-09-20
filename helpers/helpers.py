@@ -1,6 +1,6 @@
 
 import csv, random
-from connection import BaseConn, SnowflakeConn
+from .connection import BaseConn, SnowflakeConn
 
 def connect(cred: dict):
   return SnowflakeConn(cred)
