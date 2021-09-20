@@ -45,7 +45,7 @@ def _snowflake_cache(**cache_args):
 @_snowflake_cache(show_spinner=False, allow_output_mutation=True)
 def get_connector():
     """Returns the snowflake connector. Uses st.cache to only run once."""
-    return snowflake.connector.connect(**st.secrets["snowflake"])
+    return snowflake.connector.connect(**st.secrets["snowflake"], client_session_keep_alive=True)
 
 
 # @st.cache(ttl=600, **SNOWFLAKE_CACHE_ARGS)
