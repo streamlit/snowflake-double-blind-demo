@@ -88,7 +88,7 @@ def main():
 
 
   with st.spinner(f"Collecting databases available in Snowflake..."):
-      databases = get_databases()
+      databases = get_databases(conn)
 
   if "SNOWFLAKE_SAMPLE_DATA" in databases:
       index = databases.index("SNOWFLAKE_SAMPLE_DATA")
@@ -99,7 +99,7 @@ def main():
   conn.execute(f'use {database}')
 
   with st.spinner(f"Getting schemas in '{database}'..."):
-    schemas = get_schemas()
+    schemas = get_schemas(conn)
     
   schema = st.sidebar.selectbox("Choose a Schema", schemas, index=index)
 
