@@ -1,8 +1,12 @@
+from numpy import number
 import streamlit as st
 from streamlit import caching
 import pandas as pd
 import snowflake.connector
 from snowflake.connector.connection import SnowflakeConnection
+import yaml
+from typing import List, Tuple
+import random
 
 INFORMATION_SCHEMA_TABLES_COLUMNS = [
     "TABLE_CATALOG",
@@ -70,9 +74,24 @@ def get_tables(database) -> pd.DataFrame:
     return tables
 
 
+@_snowflake_cache()
+def load_names() -> Tuple[List[str], List[str]]:
+    """Returns two lists (firstnames, lastnames) of example names."""
+    with open("names.yaml") as name_file:
+        return yaml.load(name_file)
+
+
 def empty_function(conn: SnowflakeConnection):
     """TODO: Delete this function."""
     st.success("This is an empty function.")
+
+
+def randomize_names(key: str):
+    """Randomize either the list of firstnames or lastnames."""
+    assert key in ("firstnames", "lastnames")
+    names = load_names()
+    random_names = random.sample(names[key], 10)
+    setattr(st.session_state, key, random_names)
 
 
 def create_synthetic_data(conn: SnowflakeConnection):
@@ -95,9 +114,49 @@ def create_synthetic_data(conn: SnowflakeConnection):
     tables = run_query(f"SHOW TABLES IN DATABASE {SAMPLE_DATABASE};")
     st.write("tables", tables)
 
-    table_name = st.text_input("Table name")
-    if st.button("Insert a table"):
-        st.write(f"Inserting `{table_name}`")
+    st.write("## Create a new table")
+    names = load_names()
+
+    name_types = [("first name", "firstnames"), ("last name", "lastnames")]
+    for name_type, key in name_types:
+        if key not in st.session_state:
+            randomize_names(key)
+        st.multiselect(f"Select {name_type}s", names[key], key=key)
+        st.button(f"Randomize {name_type}s", on_click=randomize_names, args=(key,))
+
+    n_firstnames = len(getattr(st.session_state, "firstnames"))
+    n_lastnames = len(getattr(st.session_state, "lastnames"))
+    max_rows = n_firstnames * n_lastnames
+    assert max_rows > 0, "Must have a least one first and last name."
+    n_rows = st.slider("Number of rows", 1, max_rows, min(max_rows, 50))
+
+    df = pd.DataFrame(
+        random.sample(
+            [
+                {
+                    "firstname": firstname,
+                    "lastname": lastname,
+                    "email": f"{firstname}.{lastname}@gmail.com",
+                }
+                for firstname in st.session_state.firstnames
+                for lastname in st.session_state.lastnames
+            ],
+            n_rows,
+        )
+    )
+    st.write(df)
+    st.write(f"n_rows: `{n_rows}`")
+    st.write(f"n_firstnames: `{n_firstnames}`")
+    st.write(f"n_lastnames: `{n_lastnames}`")
+    # st.write(f"num_rows: `{n_rows}`")
+    # st.write(f"num_rows: `{n_rows}`")
+    # st.write(f"num_rows: `{n_rows}`")
+
+    # table_name = st.text_input("Table name")
+    # if st.button("Insert a table"):
+    #     st.write(f"Inserting `{table_name}`")
+
+    # st.write("### firstnames", firstnames, "### lastnames", lastnames)
 
 
 def simple_table_browser(conn: SnowflakeConnection):
