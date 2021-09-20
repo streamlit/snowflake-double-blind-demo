@@ -96,25 +96,25 @@ def randomize_names(key: str):
 
 def create_synthetic_data(conn: SnowflakeConnection):
     """Create some synthetic tables with which we can select data."""
-    # Let the user create a sample database
-    if SAMPLE_DATABASE not in get_databases():
-        st.error(f":warning: Missing database `{SAMPLE_DATABASE}`. Create it?")
-        if st.button(f"Create {SAMPLE_DATABASE}"):
-            st.warning(f"Creating `{SAMPLE_DATABASE}...`")
-            conn.cursor().execute(f"CREATE DATABASE {SAMPLE_DATABASE};")
-            st.success(f"Created `{SAMPLE_DATABASE}`")
-            caching.clear_cache()
-            st.success("The cache has been cleared.")
-            st.button("Reload this page")
-        return
+    # # Let the user create a sample database
+    # if SAMPLE_DATABASE not in get_databases():
+    #     st.error(f":warning: Missing database `{SAMPLE_DATABASE}`. Create it?")
+    #     if st.button(f"Create {SAMPLE_DATABASE}"):
+    #         st.warning(f"Creating `{SAMPLE_DATABASE}...`")
+    #         conn.cursor().execute(f"CREATE DATABASE {SAMPLE_DATABASE};")
+    #         st.success(f"Created `{SAMPLE_DATABASE}`")
+    #         caching.clear_cache()
+    #         st.success("The cache has been cleared.")
+    #         st.button("Reload this page")
+    #     return
 
-    # Show the tables
-    # tables = get_tables(SAMPLE_DATABASE)
-    # run_query(f"SELECT * FROM {SAMPLE_DATABASE}.INFORMATION_SCHEMA.TABLES;")
-    tables = run_query(f"SHOW TABLES IN DATABASE {SAMPLE_DATABASE};")
-    st.write("tables", tables)
+    # # Show the tables
+    # # tables = get_tables(SAMPLE_DATABASE)
+    # # run_query(f"SELECT * FROM {SAMPLE_DATABASE}.INFORMATION_SCHEMA.TABLES;")
+    # tables = run_query(f"SHOW TABLES IN DATABASE {SAMPLE_DATABASE};")
+    # st.write("tables", tables)
 
-    st.write("## Create a new table")
+    st.write("## Create synthetic data")
     names = load_names()
 
     name_types = [("first name", "firstnames"), ("last name", "lastnames")]
@@ -207,17 +207,18 @@ def main():
         )
         raise
 
-    # Show a browser for what functions they could run.
-    modes = {
-        "Introduction": empty_function,
-        "Create Synthetic Data": create_synthetic_data,
-        "Simple Table Browser": simple_table_browser,
-    }
-    selected_mode_name = st.sidebar.selectbox(
-        "Select mode", modes.keys()  # type: ignore
-    )
-    selected_mode = modes[selected_mode_name]
-    selected_mode(conn)
+    # # Show a browser for what functions they could run.
+    # modes = {
+    #     "Introduction": empty_function,
+    #     "Create Synthetic Data": create_synthetic_data,
+    #     "Simple Table Browser": simple_table_browser,
+    # }
+    # selected_mode_name = st.sidebar.selectbox(
+    #     "Select mode", modes.keys()  # type: ignore
+    # )
+    # selected_mode = modes[selected_mode_name]
+    # selected_mode(conn)
+    create_synthetic_data(conn)
 
 
 if __name__ == "__main__":
