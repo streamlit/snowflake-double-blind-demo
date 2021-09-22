@@ -1,3 +1,4 @@
+from logging import exception
 from numpy import number
 import streamlit as st
 from streamlit import caching
@@ -24,38 +25,43 @@ def get_connector():
     """Returns the snowflake connector. Uses st.cache to only run once."""
     return snowflake.connector.connect(**st.secrets["snowflake"])
 
+
 @_snowflake_cache(show_spinner=False, allow_output_mutation=True)
 def get_engine(database):
     """Returns the snowflake connector engine. Uses st.cache to only run once."""
     cred = st.secrets["snowflake"]
     args = [
         "snowflake://",
-        cred['user'],
+        cred["user"],
         ":",
-        cred['password'],
+        cred["password"],
         "@",
-        cred['account'],
+        cred["account"],
         "/",
         database,
         "/",
-        cred['schema'],
+        cred["schema"],
         "?warehouse=",
-        cred['warehouse'],
+        cred["warehouse"],
         "&role=",
-        cred.get('role', 'ACCOUNTADMIN'),
+        cred.get("role", "ACCOUNTADMIN"),
     ]
     url = "".join(args)
     return sa.create_engine(url, echo=False)
 
 
 # @st.cache(ttl=600, **SNOWFLAKE_CACHE_ARGS)
-@_snowflake_cache(ttl=600)
+# @_snowflake_cache(ttl=600)
 def run_query(query: str, as_df=False):
     """Perform query. Uses st.cache to only rerun when the query changes
     after 10 min."""
     conn = get_connector()
     with conn.cursor() as cur:
-        cur.execute(query)
+        try:
+            cur.execute(query)
+        except Exception as E:
+            raise Exception(f"{E}\n\nError running SQL query:\n{query}")
+
         columns = [c[0].lower() for c in cur.description]
         Row = namedtuple(
             "Row", columns
@@ -70,7 +76,10 @@ def execute_query(query: str):
     """Executes non-SELECT query, without cache"""
     conn = get_connector()
     with conn.cursor() as cur:
-        cur.execute(query)
+        try:
+            cur.execute(query)
+        except Exception as E:
+            raise Exception(f"{E}\n\nError running SQL query:\n{query}")
 
 
 # @st.cache(ttl=600)
@@ -78,24 +87,28 @@ def get_databases() -> list:
     return [row.name for row in run_query("SHOW DATABASES")]
 
 
-# @st.cache(ttl=600)
-def get_tables(database) -> pd.DataFrame:
-    tables = run_query(
-        f"SELECT * FROM {database}.INFORMATION_SCHEMA.TABLES LIMIT 10", as_df=True
-    )
-    return tables
+def get_table_names(database) -> List[str]:
+    tables = run_query(f"SELECT * FROM {database}.INFORMATION_SCHEMA.TABLES")
+    return [f"{t.table_schema}.{t.table_name}" for t in tables]
 
 
 def init_state():
     state.dbs_created = state.get("dbs_created", False)
-    state.database = state.get("database", "SNOWFLAKE_SAMPLE_DATA")
+    state.database = state.get("database", "STREAMLIT_DEMO_DB")
     state.databases = state.get("databases", [])
     state.schema = state.get("schema", "PUBLIC")
     state.schemas = state.get("schemas", [])
     state.table = state.get("table", "SAMPLE_CONTACTS")
 
 
+def get_index(choices: list, value=None):
+    if value in choices:
+        return choices.index(value)
+    return 0
+
+
 ####################### SYNTHETHIC DATA APP
+
 
 @_snowflake_cache()
 def load_names() -> Tuple[List[str], List[str]]:
@@ -118,7 +131,7 @@ def sample_database_form():
         st.error(f":warning: Missing database `{state.database}`. Create it?")
         if st.button(f"Create {state.database}"):
             st.warning(f"Creating `{state.database}...`")
-            execute_query(f"CREATE DATABASE {state.database};")
+            execute_query(f"CREATE DATABASE {state.database}")
             st.success(f"Created `{state.database}`")
             caching.clear_cache()
             st.success("The cache has been cleared.")
@@ -183,52 +196,28 @@ def synthetic_data_app(conn: SnowflakeConnection):
     if not table_name:
         st.warning("Enter a table name above an press enter to create a new table.")
     else:
-        state.table = (table_name if '.' in table_name else f"PUBLIC.{table_name}").upper()
+        state.table = (
+            table_name if "." in table_name else f"PUBLIC.{table_name}"
+        ).upper()
         if st.button(f'Create table "{state.table}"'):
-            schema, table = state.table.split('.')
+            schema, table = state.table.split(".")
             execute_query(f"use database {state.database}")
+            execute_query(f"create schema if not exists {schema}")
             execute_query(f"use schema {schema}")
             execute_query(f"drop table if exists {table}")
             st.warning(f"Creating `{table}` with len `{len(df)}`.")
             engine = get_engine(state.database)
-            engine.execute(f'use database {state.database}')
+            engine.execute(f"use database {state.database}")
             df.to_sql(
-              table, engine, 
-              schema=schema, index=False, method=pd_writer,
+                table,
+                engine,
+                schema=schema,
+                index=False,
+                method=pd_writer,
             )
             st.success(f"Created table `{state.table}`!")
 
     # st.write("### firstnames", firstnames, "### lastnames", lastnames)
-
-
-def simple_table_browser(conn: SnowflakeConnection):
-    """Minimalistic browswer of your tables in Snowflake."""
-    with st.spinner(f"Collecting databases available in Snowflake..."):
-        databases = get_databases()
-
-    if "SNOWFLAKE_SAMPLE_DATA" in databases:
-        index = databases.index("SNOWFLAKE_SAMPLE_DATA")
-    else:
-        index = 0
-
-    database = st.sidebar.selectbox("Choose a DB", databases, index=index)
-
-    st.write(f"## ❄️ Snowflake dashboard")
-    st.write(f"Database: `{database}`")
-    tables = get_tables(database)
-
-    st.write("### Table view")
-
-    st.write(
-        f"Below you'll find the 10 largest tables in your Snowflake database `{database}`:"
-    )
-
-    st.table(
-        tables[["TABLE_CATALOG", "TABLE_SCHEMA", "TABLE_NAME", "BYTES"]]
-        .set_index("TABLE_CATALOG")  # type: ignore
-        .sort_values(by="BYTES", ascending=False)  # type: ignore
-        .head(10)  # type: ignore
-    )
 
 
 ####################### INTRO APP
@@ -266,32 +255,30 @@ def double_bind_join_app(conn: SnowflakeConnection):
   """
     )
 
-    with st.sidebar.form("Sample Database"):
-        st.markdown("### Table Names")
-        table1 = st.text_input("Table 1 Name", state.table)
-        table2 = st.text_input("Table 2 Name", state.table)
-        submit = st.form_submit_button('Submit' ,'do hash join')
+    st.markdown("### Table Names")
+
+    tables = get_table_names(state.database)
+    tables = [t for t in tables if not t.lower().startswith("information_schema")]
+    t1_index = get_index(tables, state.table)
+    table1 = st.sidebar.selectbox("Choose Table 1", tables, index=t1_index)
+    t2_index = get_index(tables, state.table)
+    table2 = st.sidebar.selectbox("Choose Table 2", tables, index=t2_index)
 
     df = pd.DataFrame([], columns=[])
-    if submit:
-        with st.spinner(f"Getting data..."):
-            # TABLE1
-            table1 = table1 if "." in table1 else f"{state.database}.public.{table1}"
-            df1 = run_query(
-                f"select sha2(email) as email_hash from {table1}", as_df=True
-            )
-            st.write(f"Got {len(df1)} records from {table1}")
+    with st.spinner(f"Getting data..."):
+        # TABLE1
+        table1 = table1 if "." in table1 else f"{state.database}.public.{table1}"
+        df1 = run_query(f"select sha2(email) as email_hash from {table1}", as_df=True)
+        st.write(f"Got {len(df1)} records from Table 1: `{table1}`")
 
-            # TABLE2
-            table2 = table2 if "." in table2 else f"{state.database}.public.{table2}"
-            df2 = run_query(
-                f"select sha2(email) as email_hash from {table2}", as_df=True
-            )
-            st.write(f"Got {len(df2)} records from {table2}")
+        # TABLE2
+        table2 = table2 if "." in table2 else f"{state.database}.public.{table2}"
+        df2 = run_query(f"select sha2(email) as email_hash from {table2}", as_df=True)
+        st.write(f"Got {len(df2)} records from Table 2: `{table2}`")
 
-        with st.spinner(f"Matching Hashes..."):
-            st.write("These are matching emails from two provided tables")
-            df = df1.join(df2.set_index("email_hash"), on="email_hash")
+    with st.spinner(f"Matching Hashes..."):
+        df = df1.join(df2.set_index("email_hash"), on="email_hash", how="inner")
+        st.write(f"Found **{len(df)} matching emails** from two provided tables!")
 
     st.dataframe(df, height=720)
 
