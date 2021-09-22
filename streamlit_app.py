@@ -283,6 +283,77 @@ def double_bind_join_app(conn: SnowflakeConnection):
     st.dataframe(df, height=720)
 
 
+####################### SCHEMA BROWSER APP
+
+
+def get_schemas(conn: SnowflakeConnection):
+    rows = run_query(
+        """
+    select schema_name
+    from information_schema.schemata
+    order by schema_name
+  """
+    )
+    return [r.schema_name for r in rows]
+
+
+def get_tables_info(conn: SnowflakeConnection, schema: str):
+    df = run_query(
+        f"""
+    select *
+    from information_schema.tables
+    where table_schema = upper('{schema}')
+    order by table_name
+  """,
+        as_df=True,
+    )
+    return df
+
+
+def schema_browser_app(conn: SnowflakeConnection):
+    st.title("Schema Browser")
+
+    refresh = st.sidebar.button("Refresh")
+
+    # Show list of databases
+    if not state.databases or refresh:
+        with st.spinner(f"Collecting databases available in Snowflake..."):
+            state.databases = get_databases()
+            state.schemas = []
+
+    database_index = get_index(state.databases, state.database)
+    database = st.sidebar.selectbox(
+        "Choose a Database", state.databases, index=database_index
+    )
+    if database != state.database:
+        state.schemas = []
+        state.schema = ""
+    state.database = database
+
+    if not state.database:
+        return
+
+    # Show list of schemas
+    if not state.schemas or refresh:
+        with st.spinner(f"Getting schemas in '{state.database}'..."):
+            state.schemas = get_schemas(conn)
+            state.schema = "PUBLIC"
+
+    schema_index = get_index(state.schemas, state.schema)
+
+    state.schema = st.sidebar.selectbox(
+        "Choose a Schema", state.schemas, index=schema_index
+    )
+
+    if not state.schema:
+        return
+
+    with st.spinner(f"Getting tables for schema {state.database}.{state.schema}..."):
+        execute_query(f"use {state.database}")
+        df = get_tables_info(conn, state.schema)
+        st.dataframe(df, height=720, width=1420)
+
+
 def main():
     """Execution starts here."""
     # Get the snowflake connector. Display an error if anything went wrong.
@@ -309,6 +380,7 @@ def main():
             ("Intro", intro_app),
             ("Synthetic data generator", synthetic_data_app),
             ("Double-blind join", double_bind_join_app),
+            ("Schema browser", schema_browser_app),
         ]
     )
     selected_mode_name = st.sidebar.selectbox(
