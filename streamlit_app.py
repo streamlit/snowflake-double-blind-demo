@@ -321,10 +321,7 @@ def schema_browser_app(conn: SnowflakeConnection):
             state.databases = get_databases()
             state.schemas = []
 
-    if state.database in state.databases:
-        database_index = state.databases.index(state.database)
-    else:
-        database_index = 0
+    database_index = get_index(state.databases, state.database)
     database = st.sidebar.selectbox(
         "Choose a Database", state.databases, index=database_index
     )
@@ -342,10 +339,7 @@ def schema_browser_app(conn: SnowflakeConnection):
             state.schemas = get_schemas(conn)
             state.schema = "PUBLIC"
 
-    if state.schema in state.schemas:
-        schema_index = state.schemas.index(state.schema)
-    else:
-        schema_index = 0
+    schema_index = get_index(state.schemas, state.schema)
 
     state.schema = st.sidebar.selectbox(
         "Choose a Schema", state.schemas, index=schema_index
