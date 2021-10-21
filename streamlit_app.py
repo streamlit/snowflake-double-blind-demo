@@ -10,17 +10,20 @@ state = st.session_state
 
 
 def _snowflake_cache(**cache_args):
-    """Returns a specialized version of the st.cache decorator for Snowflake."""
+    """A specialized version of the st.cache decorator for Snowflake."""
     return st.cache(hash_funcs={"_thread.RLock": lambda _: None}, **cache_args)
 
+def _snowflake_singleton(**cache_args):
+    """A specialized version of the st.cache decorator for singleton objects."""
+    return _snowflake_cache(allow_output_mutation=True, ttl=600, **cache_args)
 
-@_snowflake_cache(show_spinner=False, allow_output_mutation=True)
+@_snowflake_singleton()
 def get_connector():
     """Returns the snowflake connector. Uses st.cache to only run once."""
     return snowflake.connector.connect(**st.secrets["snowflake"])
 
 
-@_snowflake_cache(show_spinner=False, allow_output_mutation=True)
+@_snowflake_singleton()
 def get_engine(database):
     """Returns the snowflake connector engine. Uses st.cache to only run once."""
     cred = st.secrets["snowflake"]
@@ -108,12 +111,11 @@ def get_index(choices: list, value=None):
 def load_names() -> Tuple[List[str], List[str]]:
     """Returns two lists (firstnames, lastnames) of example names."""
     with open("names.yaml") as name_file:
-        return yaml.load(name_file)
+        return yaml.safe_load(name_file)
 
 
 def randomize_names(key: str):
     """Randomize either the list of firstnames or lastnames."""
-    assert key in ("firstnames", "lastnames")
     names = load_names()
     random_names = random.sample(names[key], 10)
     setattr(state, key, random_names)
@@ -145,7 +147,7 @@ def sample_database_form():
     return True
 
 
-def synthetic_data_app(conn: SnowflakeConnection):
+def synthetic_data_page(conn: SnowflakeConnection):
     """Create some synthetic tables with which we can select data."""
     # # Let the user create a sample database
 
@@ -215,7 +217,7 @@ def synthetic_data_app(conn: SnowflakeConnection):
 
 
 ####################### INTRO APP
-def intro_app(conn: SnowflakeConnection):
+def intro_page(conn: SnowflakeConnection):
     st.sidebar.success("Select a mode above.")
 
     st.markdown(
@@ -242,7 +244,7 @@ def intro_app(conn: SnowflakeConnection):
 ####################### DOUBLE BLIND JOIN APP
 
 
-def double_bind_join_app(conn: SnowflakeConnection):
+def double_bind_join_page(conn: SnowflakeConnection):
     st.write(
         """
   This app demonstates the ability to join two different tables from different databases on hashed values. In this example, tables with hashed email values will attempt to join on limited matching data. Click **Setup** on the left sidebar to setup demo databases.
@@ -295,22 +297,15 @@ def main():
         )
         raise
 
-    st.sidebar.write("---")
-
-    # # Show a browser for what functions they could run.
-    modes = OrderedDict(
-        [
-            ("Intro", intro_app),
-            ("Synthetic data generator", synthetic_data_app),
-            ("Double-blind join", double_bind_join_app),
-        ]
-    )
-    selected_mode_name = st.sidebar.selectbox(
-        "Select mode", list(modes)  # type: ignore
-    )
+    # Show a browser for what functions they could run.
+    modes = {
+        "Double-blind join": double_bind_join_page,
+        "Intro": intro_page,
+        "Synthetic data generator": synthetic_data_page,
+    }
+    selected_mode_name = st.sidebar.selectbox("Select mode", list(modes)) # type: ignore
     selected_mode = modes[selected_mode_name]
-    selected_mode(conn)
-
+    selected_mode()
 
 if __name__ == "__main__":
     init_state()
