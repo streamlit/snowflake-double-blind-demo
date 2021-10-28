@@ -195,12 +195,14 @@ def synthetic_data_page():
     )
     st.write(df)
 
-    table_names = update_tables(state.database)
-    st.write(
-    table_number = 1
-    while (default_table_name := f"SAMPLE_{table_number}") in table_names:
-        table_number += 1
-    st.write(f"default_table_name: `{default_table_name}`")
+    raise RuntimeError("Todo: Fix this section.") 
+    # table_names = update_tables(state.database)
+    # st.write(
+    # table_number = 1
+    # default_table_name = f"SAMPLE_{table_number}"
+    # while () in table_names:
+    #     table_number += 1
+    # st.write(f"default_table_name: `{default_table_name}`")
     return
 
     table_name = st.text_input("Table name", state_table)
