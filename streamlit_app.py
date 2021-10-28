@@ -6,9 +6,13 @@ from snowflake.connector.pandas_tools import pd_writer
 from typing import List, Tuple
 from collections import namedtuple
 
+# TODO: Just use st.session_state everywhere.
 state = st.session_state
 
 
+# TODO: Would be good to see if we could use st.experimental_memo and
+# st.experimental_singleton if possible instead of st.cache.
+# https://docs.streamlit.io/library/api-reference/performance
 def _snowflake_cache(**cache_args):
     """A specialized version of the st.cache decorator for Snowflake."""
     return st.cache(hash_funcs={"_thread.RLock": lambda _: None}, **cache_args)
@@ -19,16 +23,20 @@ def _snowflake_singleton(**cache_args):
     return _snowflake_cache(allow_output_mutation=True, ttl=600, **cache_args)
 
 
+# TODO: Let's see if we can not use this. The goal is to minimize cognitive load.
 @_snowflake_singleton()
 def get_connector():
     """Returns the snowflake connector. Uses st.cache to only run once."""
     return snowflake.connector.connect(**st.secrets["snowflake"])
 
-
+# TODO: Is there a way that we can get this down to either get_engine or get_connector,
+# but not both. My guess is use this instead of get_connector. 
 @_snowflake_singleton()
 def get_engine(database):
     """Returns the snowflake connector engine. Uses st.cache to only run once."""
     cred = st.secrets["snowflake"]
+    # TODO: This is a wordy way of creating this thing. Would be better with f-string
+    # interpolation. 
     args = [
         "snowflake://",
         cred["user"],
@@ -48,6 +56,7 @@ def get_engine(database):
     url = "".join(args)
     return sa.create_engine(url, echo=False)
 
+# TODO: Can we figure out a way to merge these run_query() and execute_query()
 
 # @st.cache(ttl=600, **SNOWFLAKE_CACHE_ARGS)
 # @_snowflake_cache(ttl=600)
@@ -96,14 +105,27 @@ def update_tables(database) -> List[str]:
     ]
 
 
+# TODO: I'm going to work with to to slim down the session state.
+# I *think* that only need state.databases. Therefore, I don't even think we need this
+# method, but we can keep in maybe.
 def init_state():
+    # TODO: Not being used. Let's get rid of it. 
     state.dbs_created = state.get("dbs_created", False)
+
+    # TODO: We don't need state.database, we can make it always STREAMLIT_DEMO_DB.
     state.database = state.get("database", "STREAMLIT_DEMO_DB")
+
+    # TODO: I think it's fair for this to be session state. Set it every time a database
+    # is created / if we nuke STREAMLIT_DEMO_DB
     state.databases = state.get("databases", [])
+
+    # I don't think we need this because it can be hard-coded. 
     state.schema = state.get("schema", "PUBLIC")
     state.schemas = state.get("schemas", [])
 
 
+# I don't think we need this either. I think there's a more elegant way to do this
+# without this method and without  s
 def get_index(choices: list, value=None):
     if value in choices:
         return choices.index(value)
