@@ -69,17 +69,15 @@ def load_names() -> Tuple[List[str], List[str]]:
 
 
 class Key(Enum):
-    FIRST_NAME = "first_name"
-    LAST_NAME = "last_name"
+    FIRST_NAMES = "firstnames"
+    LAST_NAMES = "lastnames"
 
 
-# not important TODO: give key a type of enum.Enum
-# see: https://docs.python.org/3/library/enum.html
 def randomize_names(key: Key):
     """Randomize either the list of firstnames or lastnames."""
     names = load_names()
     random_names = random.sample(names[key.value], 10)  # type: ignore
-    setattr(st.session_state, key, random_names)
+    setattr(st.session_state, key.value, random_names)
 
 
 # TODO step 3: We need to look at this together when the app's running again.
@@ -122,12 +120,12 @@ def synthetic_data_page():
     # Show select boxes for the first and last names.
     names = load_names()
 
-    name_types = [("first name", "firstnames"), ("last name", "lastnames")]
+    name_types = [("first name", Key.FIRST_NAMES), ("last name", Key.LAST_NAMES)]
     for name_type, key in name_types:
         if key not in st.session_state:
             randomize_names(key)
-        st.multiselect(f"Select {name_type}s", names[key], key=key)
-        st.button(f"Randomize {name_type}s", on_click=randomize_names, args=(key,))
+        st.multiselect(f"Select {name_type}s", names[key.value], key=key.value)
+        st.button(f"Randomize {name_type}s", on_click=randomize_names, args=(key.value,))
 
     n_firstnames = len(getattr(st.session_state, "firstnames"))
     n_lastnames = len(getattr(st.session_state, "lastnames"))
