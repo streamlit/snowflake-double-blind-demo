@@ -1,5 +1,5 @@
 import yaml, random, streamlit as st, pandas as pd, sqlalchemy as sa
-import snowflake.connector
+from enum import Enum
 
 # from snowflake.connector.connection import SnowflakeConnection
 from snowflake.connector.pandas_tools import pd_writer
@@ -68,12 +68,17 @@ def load_names() -> Tuple[List[str], List[str]]:
         return yaml.safe_load(name_file)
 
 
+class Key(Enum):
+    FIRST_NAME = "first_name"
+    LAST_NAME = "last_name"
+
+
 # not important TODO: give key a type of enum.Enum
 # see: https://docs.python.org/3/library/enum.html
-def randomize_names(key: str):
+def randomize_names(key: Key):
     """Randomize either the list of firstnames or lastnames."""
     names = load_names()
-    random_names = random.sample(names[key], 10)  # type: ignore
+    random_names = random.sample(names[key.value], 10)  # type: ignore
     setattr(st.session_state, key, random_names)
 
 
@@ -227,7 +232,7 @@ def double_bind_join_page():
     st.write("raw tables", tables)
     tables = [t for t in tables if not t.lower().startswith("information_schema")]
     st.write("final tables", tables)
-    
+
     # t1_index = get_index(tables, state_table)
     table1 = st.sidebar.selectbox("Choose Table 1", tables)
     # t2_index = get_index(tables, state_table)
