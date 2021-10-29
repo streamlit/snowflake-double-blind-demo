@@ -47,14 +47,15 @@ def run_query(query: str, as_df=False):
         return pd.DataFrame(rows, columns=columns)
     return rows
 
-def update_tables(database) -> List[str]:
-    tables = run_query(f"SELECT * FROM {database}.INFORMATION_SCHEMA.TABLES")
-    return [
-        t.table_name
-        # f"{t.table_schema}.{t.table_name}"
-        for t in tables
-        if t.table_schema.lower() == "public"
-    ]
+# TODO: We may eventually want to get rid of this.
+# def update_tables(database) -> List[str]:
+#     tables = run_query(f"SELECT * FROM {database}.INFORMATION_SCHEMA.TABLES")
+#     return [
+#         t.table_name
+#         # f"{t.table_schema}.{t.table_name}"
+#         for t in tables
+#         if t.table_schema.lower() == "public"
+#     ]
 
 
 ####################### SYNTHETHIC DATA APP
@@ -66,7 +67,8 @@ def load_names() -> Tuple[List[str], List[str]]:
     with open("names.yaml") as name_file:
         return yaml.safe_load(name_file)
 
-
+# not important TODO: give key a type of enum.Enum
+# see: https://docs.python.org/3/library/enum.html
 def randomize_names(key: str):
     """Randomize either the list of firstnames or lastnames."""
     names = load_names()
@@ -74,6 +76,7 @@ def randomize_names(key: str):
     setattr(st.session_state, key, random_names)
 
 
+# TODO step 3: We need to look at this together when the app's running again.
 def sample_database_form():
     databases = [row.name for row in run_query("SHOW DATABASES")]
     "STREAMLIT_DEMO_DB" = st.text_input("Sample Database Name", "STREAMLIT_DEMO_DB")
@@ -101,6 +104,7 @@ def sample_database_form():
     return True
 
 
+# TODO step 3: We need to look at this together when the app's running again.
 def synthetic_data_page():
     """Create some synthetic tables with which we can select data."""
     # # Let the user create a sample database
@@ -143,7 +147,8 @@ def synthetic_data_page():
     )
     st.write(df)
 
-    raise RuntimeError("Todo: Fix this section.") 
+    # TODO step 2: Once you get the app to this point, let's look at it together.
+    raise RuntimeError("Todo step 2: Fix this section.") 
     # table_names = update_tables(state.database)
     # st.write(
     # table_number = 1
