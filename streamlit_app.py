@@ -23,8 +23,9 @@ def _snowflake_singleton(**cache_args):
 @_snowflake_singleton()
 def get_engine():
     """Returns the snowflake connector engine. Uses st.cache to only run once."""
-    url_template = 'snowflake://{user}:{password}@{account}/{database}/{schema}?warehouse={warehouse}&role={role}'
+    url_template = "snowflake://{user}:{password}@{account}/{database}/{schema}?warehouse={warehouse}&role={role}"
     return sa.create_engine(url_template.format(**st.secrets["snowflake"]), echo=False)
+
 
 # @st.cache(ttl=600, **SNOWFLAKE_CACHE_ARGS)
 # @_snowflake_cache(ttl=600)
@@ -36,16 +37,15 @@ def run_query(query: str, as_df=False):
         result = conn.execute(query)
     except Exception as E:
         raise Exception(f"{E}\n\nError running SQL query:\n{query}")
-        
+
     columns = list(result.keys())
-    Row = namedtuple(
-        "Row", columns
-    )  # namedtuples allow property and index reference
+    Row = namedtuple("Row", columns)  # namedtuples allow property and index reference
     rows = [Row(*row) for row in result.fetchall()]
 
     if as_df:
         return pd.DataFrame(rows, columns=columns)
     return rows
+
 
 # TODO: We may eventually want to get rid of this.
 # def update_tables(database) -> List[str]:
@@ -67,6 +67,7 @@ def load_names() -> Tuple[List[str], List[str]]:
     with open("names.yaml") as name_file:
         return yaml.safe_load(name_file)
 
+
 # not important TODO: give key a type of enum.Enum
 # see: https://docs.python.org/3/library/enum.html
 def randomize_names(key: str):
@@ -79,7 +80,6 @@ def randomize_names(key: str):
 # TODO step 3: We need to look at this together when the app's running again.
 def sample_database_form():
     databases = [row.name for row in run_query("SHOW DATABASES")]
-    "STREAMLIT_DEMO_DB" = st.text_input("Sample Database Name", "STREAMLIT_DEMO_DB")
     if "STREAMLIT_DEMO_DB" not in databases:
         st.error(f":warning: Missing database `STREAMLIT_DEMO_DB`. Create it?")
         if st.button(f"Create STREAMLIT_DEMO_DB"):
@@ -148,7 +148,7 @@ def synthetic_data_page():
     st.write(df)
 
     # TODO step 2: Once you get the app to this point, let's look at it together.
-    raise RuntimeError("Todo step 2: Fix this section.") 
+    raise RuntimeError("Todo step 2: Fix this section.")
     # table_names = update_tables(state.database)
     # st.write(
     # table_number = 1
@@ -209,6 +209,11 @@ def intro_page():
     )
 
 
+def get_public_tables(database) -> List[str]:
+    tables = run_query(f"SELECT * FROM {database}.INFORMATION_SCHEMA.TABLES")
+    return [f"{t.table_schema}.{t.table_name}" for t in tables]
+
+
 def double_bind_join_page():
     st.markdown("### Table Names")
 
@@ -222,6 +227,7 @@ def double_bind_join_page():
     st.write("raw tables", tables)
     tables = [t for t in tables if not t.lower().startswith("information_schema")]
     st.write("final tables", tables)
+    
     # t1_index = get_index(tables, state_table)
     table1 = st.sidebar.selectbox("Choose Table 1", tables)
     # t2_index = get_index(tables, state_table)
@@ -229,26 +235,26 @@ def double_bind_join_page():
 
     tables = st.multiselect("Select tables to compare", tables, default=tables[:2])
 
-    st.write("state.database", "STREAMLIT_DEMO_DB")
+    if not (table1 or table2):
+        return
+
     st.write("tables", tables)
-    df1 = run_query(f"select * from STREAMLIT_DEMO_DB.public.{table1}", as_df=True)
+    df1 = run_query(f"select * from STREAMLIT_DEMO_DB.{table1}", as_df=True)
     st.write(df1)
 
     df = pd.DataFrame([], columns=[])
     with st.spinner(f"Getting data..."):
         # TABLE1
-        table1 = f"STREAMLIT_DEMO_DB.public.{table1}"
-        st.write("table1", table1)
         df1 = run_query(
-            f"select (sha2(email || 'abc')) as email_hash from {table2}", as_df=True
+            f"select (sha2(email || 'abc')) as email_hash from STREAMLIT_DEMO_DB.{table1}",
+            as_df=True,
         )
         st.write(f"Got {len(df1)} records from Table 1: `{table1}`")
 
         # TABLE2
-        table2 = table2 if "." in table2 else f"STREAMLIT_DEMO_DB.public.{table2}"
-        st.write("table2", table2)
         df2 = run_query(
-            f"select sha2(email || 'abc') as email_hash from {table2}", as_df=True
+            f"select sha2(email || 'abc') as email_hash from STREAMLIT_DEMO_DB.{table2}",
+            as_df=True,
         )
         st.write(f"Got {len(df2)} records from Table 2: `{table2}`")
 
@@ -278,15 +284,15 @@ def main():
             """
         )
         raise
-    
+
     # initiate state
     st.session_state.databases = st.session_state.get("databases", [])
 
     # Show a browser for what functions they could run.
     modes = {
-        "Double-blind join": double_bind_join_page,
         "Intro": intro_page,
         "Synthetic data generator": synthetic_data_page,
+        "Double-blind join": double_bind_join_page,
     }
     selected_mode_name = st.sidebar.selectbox("Select mode", list(modes))  # type: ignore
     selected_mode = modes[selected_mode_name]
