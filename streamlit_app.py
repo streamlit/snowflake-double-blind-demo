@@ -12,10 +12,13 @@ from collections import namedtuple
 # https://docs.streamlit.io/library/api-reference/performance
 def _snowflake_cache(**cache_args):
     """A specialized version of the st.cache decorator for Snowflake."""
-    return st.cache(hash_funcs={
+    return st.cache(
+        hash_funcs={
             "_thread.RLock": lambda _: None,
-            "builtins.weakref": lambda _: None},
-         **cache_args)
+            "builtins.weakref": lambda _: None,
+        },
+        **cache_args,
+    )
 
 
 def _snowflake_singleton(**cache_args):
@@ -32,10 +35,10 @@ def get_engine():
 
 # @st.cache(ttl=600, **SNOWFLAKE_CACHE_ARGS)
 # @_snowflake_cache(ttl=600)
-def run_query(query: str, as_df=False):
+def run_query(query: str, as_df=False, engine=None):
     """Perform query. Uses st.cache to only rerun when the query changes
     after 10 min."""
-    conn = get_engine()
+    conn = engine or get_engine()
     try:
         result = conn.execute(query)
     except Exception as E:
@@ -48,17 +51,6 @@ def run_query(query: str, as_df=False):
     if as_df:
         return pd.DataFrame(rows, columns=columns)
     return rows
-
-
-# TODO: We may eventually want to get rid of this.
-# def update_tables(database) -> List[str]:
-#     tables = run_query(f"SELECT * FROM {database}.INFORMATION_SCHEMA.TABLES")
-#     return [
-#         t.table_name
-#         # f"{t.table_schema}.{t.table_name}"
-#         for t in tables
-#         if t.table_schema.lower() == "public"
-#     ]
 
 
 ####################### SYNTHETHIC DATA APP
@@ -84,40 +76,47 @@ def randomize_names(key: Key):
 
 
 # TODO step 3:
-#  - This tests should be done 
-def sample_database_form():
+#  - This tests should be done
+def database_form():
+    global table1, table2
     databases = [row.name for row in run_query("SHOW DATABASES")]
-    if "STREAMLIT_DEMO_DB" not in databases:
-        st.error(f":warning: Missing database `STREAMLIT_DEMO_DB`. Create it?")
-        if st.button(f"Create STREAMLIT_DEMO_DB"):
-            st.warning(f"Creating `STREAMLIT_DEMO_DB...`")
-            run_query(f"CREATE DATABASE STREAMLIT_DEMO_DB")
-            st.success(f"Created `STREAMLIT_DEMO_DB`")
-            # caching.clear_cache()
-            st.success("The cache has been cleared.")
-            st.button("Reload this page")
-        return False
+    with st.sidebar:
+        if "STREAMLIT_DEMO_DB" not in databases:
+            st.error(f":warning: Missing database `STREAMLIT_DEMO_DB`. Create it?")
+            if st.button(f"Create STREAMLIT_DEMO_DB"):
+                st.warning(f"Creating `STREAMLIT_DEMO_DB...`")
+                run_query(f"CREATE DATABASE STREAMLIT_DEMO_DB")
+                st.success(f"Created `STREAMLIT_DEMO_DB`")
+                # caching.clear_cache()
+                st.success("The cache has been cleared.")
+                st.button("Reload this page")
+            return
 
-    st.success(f"Found STREAMLIT_DEMO_DB!")
-    if st.button(f"Destroy STREAMLIT_DEMO_DB"):
-        st.warning(f"Destroying `STREAMLIT_DEMO_DB...`")
-        run_query(f"DROP DATABASE STREAMLIT_DEMO_DB CASCADE")
-        st.success(f"Destroyed `STREAMLIT_DEMO_DB`")
-        # caching.clear_cache()
-        st.success("The cache has been cleared.")
-        st.button("Reload this page")
-        return False
+        # show tables
+        tables = get_tables("STREAMLIT_DEMO_DB", "PUBLIC")
+        table1 = st.sidebar.selectbox("Choose Table 1", tables)
+        table2 = st.sidebar.selectbox("Choose Table 2", tables)
 
-    return True
+        # advanced form, destroy database
+        with st.expander("Advanced"):
+            if st.button(f"DROP PUBLIC Tables"):
+                st.warning(f"Dropping all tables in schema `PUBLIC`")
+                engine = get_engine()
+                for table in tables:
+                    run_query(f"DROP TABLE STREAMLIT_DEMO_DB.PUBLIC.{table}", engine)
+                if st.button("Reload this page"):
+                    st.caching.clear_cache()
+
+            if st.button(f"Nuke STREAMLIT_DEMO_DB"):
+                st.warning(f"Destroying `STREAMLIT_DEMO_DB...`")
+                run_query(f"DROP DATABASE STREAMLIT_DEMO_DB CASCADE")
+                st.success(f"Destroyed `STREAMLIT_DEMO_DB`")
+                if st.button("Reload this page"):
+                    st.caching.clear_cache()
 
 
 def synthetic_data_page():
     """Create some synthetic tables with which we can select data."""
-    # # Let the user create a sample database
-
-    if not sample_database_form():
-        return  # if sample database did not exist or is destroyed
-
     st.write("## Create synthetic data")
 
     # Show select boxes for the first and last names.
@@ -128,8 +127,7 @@ def synthetic_data_page():
         if key not in st.session_state:
             randomize_names(key)
         st.multiselect(f"Select {name_type}s", names[key.value], key=key.value)
-        # TODO: fix this button 
-        st.button(f"Randomize {name_type}s", on_click=randomize_names, args=(key.value,))
+        st.button(f"Randomize {name_type}s", on_click=randomize_names, args=(key,))
 
     n_firstnames = len(getattr(st.session_state, "firstnames"))
     n_lastnames = len(getattr(st.session_state, "lastnames"))
@@ -154,49 +152,43 @@ def synthetic_data_page():
     )
     st.write(df)
 
-    # TODO step 2: Once you get the app to this point, let's look at it together.
-    raise RuntimeError("""
-            Todo step 2: Auto-come up wiht a unique table name 
-            by finding smallest n such that SAMPLE_n doesn't exit.
-            """)
-    # table_names = update_tables(state.database)
-    # st.write(
-    # table_number = 1
-    # default_table_name = f"SAMPLE_{table_number}"
-    # while () in table_names:
-    #     table_number += 1
-    # st.write(f"default_table_name: `{default_table_name}`")
-    return
+    # TODO: determine max number of SAMPLE tables? now is 10
+    def make_table_name():
+        tables = get_tables("STREAMLIT_DEMO_DB", "PUBLIC")
+        print(tables)
+        for i in range(10):
+            table_name = f"SAMPLE_{i}"
+            if table_name not in tables:
+                break
+            if i == 9:
+                raise Exception(
+                    f"""
+            Reached maximum number of SAMPLE tables.
+            Please clear database or drop table {table_name}.
+          """
+                )
+        return table_name
 
-    table_name = st.text_input("Table name", state_table)
-    if not table_name:
-        st.warning("Enter a table name above an press enter to create a new table.")
-    else:
-        state_table = f"PUBLIC.{table_name}".upper()
-        if st.button(f'Create table "{state_table}"'):
-            schema, table = state_table.split(".")
-            run_query(f"use database {state.database}")
-            run_query(f"create schema if not exists {schema}")
-            run_query(f"use schema {schema}")
-            run_query(f"drop table if exists {table}")
-            st.warning(f"Creating `{table}` with len `{len(df)}`.")
-            engine = get_engine(state.database)
-            engine.execute(f"use database {state.database}")
-            df.to_sql(
-                table,
-                engine,
-                schema=schema,
-                index=False,
-                method=pd_writer,
-            )
-            st.success(f"Created table `{state_table}`!")
-
-    # st.write("### firstnames", firstnames, "### lastnames", lastnames)
+    table = make_table_name()
+    if st.button(f'Create table "{table}"'):
+        st.warning(f"Creating `{table}` with len `{len(df)}`.")
+        engine = get_engine()
+        run_query(f"use database STREAMLIT_DEMO_DB", engine)
+        run_query(f"use schema PUBLIC", engine)
+        run_query(f"drop table if exists PUBLIC.{table}", engine)
+        df.to_sql(
+            table,
+            engine,
+            schema="PUBLIC",
+            index=False,
+            method=pd_writer,
+        )
+        st.success(f"Created table `{table}`!")
+        table = make_table_name()
 
 
 ####################### INTRO APP
 def intro_page():
-    st.sidebar.success("Select a mode above.")
 
     st.markdown(
         """
@@ -219,51 +211,41 @@ def intro_page():
     )
 
 
-def get_public_tables(database) -> List[str]:
+def get_tables(database, schema) -> List[str]:
     tables = run_query(f"SELECT * FROM {database}.INFORMATION_SCHEMA.TABLES")
-    return [f"{t.table_schema}.{t.table_name}" for t in tables]
+    tables = [t for t in tables if t.table_schema.lower() == schema.lower()]
+    return [f"{t.table_name}" for t in tables]
 
 
 def double_bind_join_page():
-    st.markdown("### Table Names")
+    global table1, table2
+    st.markdown("## Double Bind Join")
 
-    tables = get_public_tables("STREAMLIT_DEMO_DB")
+    tables = get_tables("STREAMLIT_DEMO_DB", "PUBLIC")
     if len(tables) < 2:
         st.warning(
             ":point_left: Must have a least two tables to compare."
             "**Please select *Synthetic table generator* to create data.**"
         )
         return
-    st.write("raw tables", tables)
-    tables = [t for t in tables if not t.lower().startswith("information_schema")]
-    st.write("final tables", tables)
 
-    # t1_index = get_index(tables, state_table)
-    table1 = st.sidebar.selectbox("Choose Table 1", tables)
-    # t2_index = get_index(tables, state_table)
-    table2 = st.sidebar.selectbox("Choose Table 2", tables)
-
-    tables = st.multiselect("Select tables to compare", tables, default=tables[:2])
+    # tables = st.multiselect("Select tables to compare", tables, default=tables[:2])
 
     if not (table1 or table2):
         return
-
-    st.write("tables", tables)
-    df1 = run_query(f"select * from STREAMLIT_DEMO_DB.{table1}", as_df=True)
-    st.write(df1)
 
     df = pd.DataFrame([], columns=[])
     with st.spinner(f"Getting data..."):
         # TABLE1
         df1 = run_query(
-            f"select (sha2(email || 'abc')) as email_hash from STREAMLIT_DEMO_DB.{table1}",
+            f"select (sha2(email || 'abc')) as email_hash from STREAMLIT_DEMO_DB.PUBLIC.{table1}",
             as_df=True,
         )
         st.write(f"Got {len(df1)} records from Table 1: `{table1}`")
 
         # TABLE2
         df2 = run_query(
-            f"select sha2(email || 'abc') as email_hash from STREAMLIT_DEMO_DB.{table2}",
+            f"select sha2(email || 'abc') as email_hash from STREAMLIT_DEMO_DB.PUBLIC.{table2}",
             as_df=True,
         )
         st.write(f"Got {len(df2)} records from Table 2: `{table2}`")
@@ -299,14 +281,18 @@ def main():
     st.session_state.databases = st.session_state.get("databases", [])
 
     # Show a browser for what functions they could run.
+    st.sidebar.success("Select a mode below.")
     modes = {
         "Intro": intro_page,
         "Synthetic data generator": synthetic_data_page,
         "Double-blind join": double_bind_join_page,
     }
     selected_mode_name = st.sidebar.selectbox("Select mode", list(modes))  # type: ignore
+    database_form()
+    
     selected_mode = modes[selected_mode_name]
     selected_mode()
+
 
 
 if __name__ == "__main__":
