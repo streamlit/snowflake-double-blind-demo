@@ -12,7 +12,10 @@ from collections import namedtuple
 # https://docs.streamlit.io/library/api-reference/performance
 def _snowflake_cache(**cache_args):
     """A specialized version of the st.cache decorator for Snowflake."""
-    return st.cache(hash_funcs={"_thread.RLock": lambda _: None}, **cache_args)
+    return st.cache(hash_funcs={
+            "_thread.RLock": lambda _: None,
+            "builtins.weakref": lambda _: None},
+         **cache_args)
 
 
 def _snowflake_singleton(**cache_args):
@@ -80,7 +83,8 @@ def randomize_names(key: Key):
     setattr(st.session_state, key.value, random_names)
 
 
-# TODO step 3: We need to look at this together when the app's running again.
+# TODO step 3:
+#  - This tests should be done 
 def sample_database_form():
     databases = [row.name for row in run_query("SHOW DATABASES")]
     if "STREAMLIT_DEMO_DB" not in databases:
@@ -107,7 +111,6 @@ def sample_database_form():
     return True
 
 
-# TODO step 3: We need to look at this together when the app's running again.
 def synthetic_data_page():
     """Create some synthetic tables with which we can select data."""
     # # Let the user create a sample database
@@ -125,6 +128,7 @@ def synthetic_data_page():
         if key not in st.session_state:
             randomize_names(key)
         st.multiselect(f"Select {name_type}s", names[key.value], key=key.value)
+        # TODO: fix this button 
         st.button(f"Randomize {name_type}s", on_click=randomize_names, args=(key.value,))
 
     n_firstnames = len(getattr(st.session_state, "firstnames"))
@@ -151,7 +155,10 @@ def synthetic_data_page():
     st.write(df)
 
     # TODO step 2: Once you get the app to this point, let's look at it together.
-    raise RuntimeError("Todo step 2: Fix this section.")
+    raise RuntimeError("""
+            Todo step 2: Auto-come up wiht a unique table name 
+            by finding smallest n such that SAMPLE_n doesn't exit.
+            """)
     # table_names = update_tables(state.database)
     # st.write(
     # table_number = 1
