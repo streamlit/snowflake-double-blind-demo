@@ -3,9 +3,8 @@ from enum import Enum
 
 # from snowflake.connector.connection import SnowflakeConnection
 from snowflake.connector.pandas_tools import pd_writer
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from collections import namedtuple
-
 
 # TODO: Would be good to see if we could use st.experimental_memo and
 # st.experimental_singleton if possible instead of st.cache.
@@ -27,26 +26,27 @@ def _snowflake_singleton(**cache_args):
 
 
 @_snowflake_singleton()
-def get_engine():
+def get_engine(snowflake_creds: Dict[str, str]):
     """Returns the snowflake connector engine. Uses st.cache to only run once."""
     url_template = "snowflake://{user}:{password}@{account}/{database}/{schema}?warehouse={warehouse}&role={role}"
-    return sa.create_engine(url_template.format(**st.secrets["snowflake"]), echo=False)
+    return sa.create_engine(url_template.format(**snowflake_creds), echo=False)
 
 
 # @st.cache(ttl=600, **SNOWFLAKE_CACHE_ARGS)
 # @_snowflake_cache(ttl=600)
-def run_query(query: str, as_df=False, engine=None):
+def run_query(query: str, as_df=False):
     """Perform query. Uses st.cache to only rerun when the query changes
     after 10 min."""
-    conn = engine or get_engine()
+    conn = get_engine(st.secrets["snowflake"])
     try:
         result = conn.execute(query)
     except Exception as E:
         raise Exception(f"{E}\n\nError running SQL query:\n{query}")
 
-    columns = list(result.keys())
-    Row = namedtuple("Row", columns)  # namedtuples allow property and index reference
-    rows = [Row(*row) for row in result.fetchall()]
+    # namedtuples allow property and index reference
+    columns = list(result.keys())  # type: ignore
+    Row = namedtuple("Row", columns)
+    rows = [Row(*row) for row in result.fetchall()]  # type: ignore
 
     if as_df:
         return pd.DataFrame(rows, columns=columns)
@@ -101,18 +101,20 @@ def database_form():
         with st.expander("Advanced"):
             if st.button(f"DROP PUBLIC Tables"):
                 st.warning(f"Dropping all tables in schema `PUBLIC`")
-                engine = get_engine()
+                engine = get_engine(st.secrets["snowflake"])
                 for table in tables:
                     run_query(f"DROP TABLE STREAMLIT_DEMO_DB.PUBLIC.{table}", engine)
                 if st.button("Reload this page"):
-                    st.caching.clear_cache()
+                    # st.caching.clear_cache()
+                    st.success("DELETE THIS: Just clicked the button.")
 
             if st.button(f"Nuke STREAMLIT_DEMO_DB"):
                 st.warning(f"Destroying `STREAMLIT_DEMO_DB...`")
                 run_query(f"DROP DATABASE STREAMLIT_DEMO_DB CASCADE")
                 st.success(f"Destroyed `STREAMLIT_DEMO_DB`")
                 if st.button("Reload this page"):
-                    st.caching.clear_cache()
+                    # st.caching.clear_cache()
+                    st.success("DELETE THIS: Just clicked the button.")
 
 
 def synthetic_data_page():
@@ -156,6 +158,7 @@ def synthetic_data_page():
     def make_table_name():
         tables = get_tables("STREAMLIT_DEMO_DB", "PUBLIC")
         print(tables)
+        table_name = f"ERROR"
         for i in range(10):
             table_name = f"SAMPLE_{i}"
             if table_name not in tables:
@@ -172,7 +175,7 @@ def synthetic_data_page():
     table = make_table_name()
     if st.button(f'Create table "{table}"'):
         st.warning(f"Creating `{table}` with len `{len(df)}`.")
-        engine = get_engine()
+        engine = get_engine(st.secrets["snowflake"])
         run_query(f"use database STREAMLIT_DEMO_DB", engine)
         run_query(f"use schema PUBLIC", engine)
         run_query(f"drop table if exists PUBLIC.{table}", engine)
@@ -263,7 +266,7 @@ def main():
     """Execution starts here."""
     # Get the snowflake connector. Display an error if anything went wrong.
     try:
-        get_engine()
+        get_engine(st.secrets["snowflake"])
     except:
         snowflake_tutorial = (
             "https://docs.streamlit.io/en/latest/tutorial/snowflake.html"
@@ -289,10 +292,9 @@ def main():
     }
     selected_mode_name = st.sidebar.selectbox("Select mode", list(modes))  # type: ignore
     database_form()
-    
+
     selected_mode = modes[selected_mode_name]
     selected_mode()
-
 
 
 if __name__ == "__main__":
