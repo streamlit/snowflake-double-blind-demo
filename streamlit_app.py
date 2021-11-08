@@ -283,7 +283,7 @@ def main():
 
     # Show the tables
     st.sidebar.write("---")
-    st.sidebar.subheader("Tables")
+    st.sidebar.subheader("Tables of Contacts")
     st.sidebar.table(tables)
 
     # Run the selected mode
