@@ -6,6 +6,8 @@ from snowflake.connector.pandas_tools import pd_writer
 from typing import List, Tuple, Dict
 from collections import namedtuple
 
+DEMO_DB = "STREAMLIT_DEMO_DB"
+
 # TODO: Would be good to see if we could use st.experimental_memo and
 # st.experimental_singleton if possible instead of st.cache.
 # https://docs.streamlit.io/library/api-reference/performance
@@ -53,6 +55,29 @@ def run_query(query: str, as_df=False):
     return rows
 
 
+def get_tables(database=DEMO_DB, schema="PUBLIC") -> List[str]:
+    """Returns the list of table names from the demo database."""
+    tables = run_query(f"SELECT * FROM {database}.INFORMATION_SCHEMA.TABLES")
+    tables = [t for t in tables if t.table_schema.lower() == schema.lower()]
+    tables = pd.DataFrame(tables)[["table_name", "row_count"]]
+    st.sidebar.table(tables)
+    st.sidebar.table(tables.set_index("table_name"))
+    raise RuntimeError("Just showed the dataframe")
+    st.text(tables[0])
+    st.write(dir(tables[0]))
+    return [f"{t.table_name}" for t in tables]
+
+
+def show_tables() -> None:
+    """Show the list of tables in the sidebar."""
+    tables = get_tables()
+    st.sidebar.table(tables)
+    table_markdown = "\n".join("%i. %s" % pair for pair in enumerate(tables))
+    st.sidebar.write("## Tables\n" + table_markdown)
+    # tables = run_query(f"SELECT * FROM {database}.INFORMATION_SCHEMA.TABLES")
+    # tables = [t for t in tables if t.table_schema.lower() == schema.lower()]
+
+
 ####################### SYNTHETHIC DATA APP
 
 
@@ -93,7 +118,7 @@ def database_form():
             return
 
         # show tables
-        tables = get_tables("STREAMLIT_DEMO_DB", "PUBLIC")
+        tables = get_tables()
         table1 = st.sidebar.selectbox("Choose Table 1", tables)
         table2 = st.sidebar.selectbox("Choose Table 2", tables)
 
@@ -156,7 +181,7 @@ def synthetic_data_page():
 
     # TODO: determine max number of SAMPLE tables? now is 10
     def make_table_name():
-        tables = get_tables("STREAMLIT_DEMO_DB", "PUBLIC")
+        tables = get_tables()
         print(tables)
         table_name = f"ERROR"
         for i in range(10):
@@ -214,17 +239,11 @@ def intro_page():
     )
 
 
-def get_tables(database, schema) -> List[str]:
-    tables = run_query(f"SELECT * FROM {database}.INFORMATION_SCHEMA.TABLES")
-    tables = [t for t in tables if t.table_schema.lower() == schema.lower()]
-    return [f"{t.table_name}" for t in tables]
-
-
 def double_bind_join_page():
     global table1, table2
     st.markdown("## Double Bind Join")
 
-    tables = get_tables("STREAMLIT_DEMO_DB", "PUBLIC")
+    tables = get_tables()
     if len(tables) < 2:
         st.warning(
             ":point_left: Must have a least two tables to compare."
@@ -265,23 +284,27 @@ def double_bind_join_page():
 def main():
     """Execution starts here."""
     # Get the snowflake connector. Display an error if anything went wrong.
-    try:
-        get_engine(st.secrets["snowflake"])
-    except:
-        snowflake_tutorial = (
-            "https://docs.streamlit.io/en/latest/tutorial/snowflake.html"
-        )
-        st.sidebar.error(
-            f"""
-            Couldn't load your credentials.  
-            Did you have a look at our 
-            [tutorial on connecting to Snowflake]({snowflake_tutorial})?
-            """
-        )
-        raise
+    # try:
+    #     get_engine(st.secrets["snowflake"])
+    # except:
+    #     snowflake_tutorial = (
+    #         "https://docs.streamlit.io/en/latest/tutorial/snowflake.html"
+    #     )
+    #     st.sidebar.error(
+    #         f"""
+    #         Couldn't load your credentials.
+    #         Did you have a look at our
+    #         [tutorial on connecting to Snowflake]({snowflake_tutorial})?
+    #         """
+    #     )
+    #     # raise
 
-    # initiate state
-    st.session_state.databases = st.session_state.get("databases", [])
+    # # initiate state
+    # st.session_state.databases = st.session_state.get("databases", [])
+
+    tables = get_tables()
+    st.json(tables)
+    show_tables()
 
     # Show a browser for what functions they could run.
     st.sidebar.success("Select a mode below.")
@@ -292,10 +315,11 @@ def main():
         "Show the source code": None,
     }
     selected_mode_name = st.sidebar.selectbox("Select mode", list(modes))  # type: ignore
-    database_form()
+    st.write(f'Selected mode: "{selected_mode_name}"')
+    # database_form()
 
-    selected_mode = modes[selected_mode_name]
-    selected_mode()
+    # selected_mode = modes[selected_mode_name]
+    # selected_mode()
 
 
 if __name__ == "__main__":
