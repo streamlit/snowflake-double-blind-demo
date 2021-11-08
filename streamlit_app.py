@@ -286,13 +286,13 @@ def main():
         "Intro": intro_page,
         "Synthetic data generator": synthetic_data_page,
         "Double-blind join": double_bind_join_page,
+        "Show the source code": None,
     }
     selected_mode_name = st.sidebar.selectbox("Select mode", list(modes))  # type: ignore
     database_form()
-    
+
     selected_mode = modes[selected_mode_name]
     selected_mode()
-
 
 
 if __name__ == "__main__":
