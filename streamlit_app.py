@@ -78,7 +78,6 @@ def randomize_names(key: Key):
 # TODO step 3:
 #  - This tests should be done
 def database_form():
-    global table1, table2
     databases = [row.name for row in run_query("SHOW DATABASES")]
     with st.sidebar:
         if "STREAMLIT_DEMO_DB" not in databases:
@@ -94,8 +93,10 @@ def database_form():
 
         # show tables
         tables = get_tables("STREAMLIT_DEMO_DB", "PUBLIC")
-        table1 = st.sidebar.selectbox("Choose Table 1", tables)
-        table2 = st.sidebar.selectbox("Choose Table 2", tables)
+        st.markdown(
+          '#### List of Tables:\n' + 
+          '\n'.join([f'- {t}' for t in tables])
+          )
 
         # advanced form, destroy database
         with st.expander("Advanced"):
@@ -218,7 +219,6 @@ def get_tables(database, schema) -> List[str]:
 
 
 def double_bind_join_page():
-    global table1, table2
     st.markdown("## Double Bind Join")
 
     tables = get_tables("STREAMLIT_DEMO_DB", "PUBLIC")
@@ -229,6 +229,8 @@ def double_bind_join_page():
         )
         return
 
+    table1 = st.selectbox("Choose Table 1", tables)
+    table2 = st.selectbox("Choose Table 2", tables)
     # tables = st.multiselect("Select tables to compare", tables, default=tables[:2])
 
     if not (table1 or table2):
@@ -289,7 +291,7 @@ def main():
     }
     selected_mode_name = st.sidebar.selectbox("Select mode", list(modes))  # type: ignore
     database_form()
-    
+
     selected_mode = modes[selected_mode_name]
     selected_mode()
 
