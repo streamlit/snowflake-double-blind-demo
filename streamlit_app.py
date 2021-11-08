@@ -55,27 +55,11 @@ def run_query(query: str, as_df=False):
     return rows
 
 
-def get_tables(database=DEMO_DB, schema="PUBLIC") -> List[str]:
+def get_tables(database=DEMO_DB, schema="PUBLIC") -> pd.DataFrame:
     """Returns the list of table names from the demo database."""
     tables = run_query(f"SELECT * FROM {database}.INFORMATION_SCHEMA.TABLES")
     tables = [t for t in tables if t.table_schema.lower() == schema.lower()]
-    tables = pd.DataFrame(tables)[["table_name", "row_count"]]
-    st.sidebar.table(tables)
-    st.sidebar.table(tables.set_index("table_name"))
-    raise RuntimeError("Just showed the dataframe")
-    st.text(tables[0])
-    st.write(dir(tables[0]))
-    return [f"{t.table_name}" for t in tables]
-
-
-def show_tables() -> None:
-    """Show the list of tables in the sidebar."""
-    tables = get_tables()
-    st.sidebar.table(tables)
-    table_markdown = "\n".join("%i. %s" % pair for pair in enumerate(tables))
-    st.sidebar.write("## Tables\n" + table_markdown)
-    # tables = run_query(f"SELECT * FROM {database}.INFORMATION_SCHEMA.TABLES")
-    # tables = [t for t in tables if t.table_schema.lower() == schema.lower()]
+    return pd.DataFrame(tables)[["table_name", "row_count"]]
 
 
 ####################### SYNTHETHIC DATA APP
@@ -302,9 +286,8 @@ def main():
     # # initiate state
     # st.session_state.databases = st.session_state.get("databases", [])
 
+    # Get the database tables created by the user.
     tables = get_tables()
-    st.json(tables)
-    show_tables()
 
     # Show a browser for what functions they could run.
     st.sidebar.success("Select a mode below.")
@@ -315,11 +298,15 @@ def main():
         "Show the source code": None,
     }
     selected_mode_name = st.sidebar.selectbox("Select mode", list(modes))  # type: ignore
-    st.write(f'Selected mode: "{selected_mode_name}"')
-    # database_form()
 
-    # selected_mode = modes[selected_mode_name]
-    # selected_mode()
+    # Show the tables
+    st.sidebar.write("---")
+    st.sidebar.subheader("Tables")
+    st.sidebar.table(tables)
+
+    # Run the selected mode
+    selected_mode = modes[selected_mode_name]
+    selected_mode()
 
 
 if __name__ == "__main__":
