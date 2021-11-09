@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import sqlalchemy as sa
 from snowflake.connector.pandas_tools import pd_writer
-from typing import List, Tuple, Dict, Set
+from typing import Dict, Set
 from collections import namedtuple
 
 DEMO_DB = "STREAMLIT_DEMO_DB"
@@ -60,13 +60,13 @@ def add_table(name: str, table: pd.DataFrame) -> None:
 def create_unique_table_name(tables: Set[str]) -> str:
     """Creates a table name not in the set of existing table names."""
     suffix = 0
-    while (table_name := f"CONTACT_TABLE_{suffix}") in tables:
+    while (table_name := f"CONTACTS_{suffix}") in tables:
         suffix += 1
     return table_name
 
 
 @st.experimental_memo(max_entries=1, show_spinner=False)
-def load_names() -> Tuple[List[str], List[str]]:
+def load_names():
     """Returns two lists (firstnames, lastnames) of example names."""
     with open("names.yaml") as name_file:
         return yaml.safe_load(name_file)
@@ -79,12 +79,23 @@ def randomize_names(key: str):
     setattr(st.session_state, key, random_names)
 
 
+def intro_page():
+    """Show the text the user first sees when they run the app."""
+    with open("README.md") as readme:
+        st.markdown(readme.read())
+
+
 def synthetic_data_page():
     """Create some synthetic tables with which we can select data."""
-    st.write("## Create synthetic data")
+    st.write("## :robot_face: Create synthetic data")
+
+    st.success(
+        "Feel free to **add and delete names**, and **play with the length slider!** "
+        "When you're ready, **click the *create table* button below.**"
+    )
 
     # Show select boxes for the first and last names.
-    st.write("### :level_slider: Select names")
+    st.write("### Select names")
     names = load_names()
     name_types = [("first name", "firstnames"), ("last name", "lastnames")]
     for name_type, key in name_types:
@@ -101,7 +112,7 @@ def synthetic_data_page():
     n_rows = st.slider("Number of rows", 1, max_rows, min(max_rows, 50))
 
     # Show a preview of the synthetic contacts
-    st.write("### :sleuth_or_spy: Data preview")
+    st.write("### Data preview")
     synthetic_contacts = pd.DataFrame(
         random.sample(
             [
@@ -128,31 +139,25 @@ def synthetic_data_page():
     )
 
 
-def intro_page():
-    """Show the text the user first sees when they run the app."""
-    with open("README.md") as readme:
-        st.markdown(readme.read())
-
-
 def double_bind_join_page():
-    st.markdown("## Double-blind Join")
+    st.markdown("## :see_no_evil: Double-blind Join")
+
+    st.success(
+        "Select to tables to compaire. You can also change the hash salt. "
+        "**Matching hashes will automatically be show below.**"
+    )
 
     tables = get_tables()
-    if len(tables) < 2:
-        st.warning(
-            ":point_left: Must have a least two tables to compare."
-            "**Please select *Synthetic table generator* to create data.**"
-        )
-        return
+    assert len(tables) >= 2, "Must have a least two tables to compare."
 
     hashed_emails = [None, None]
     for i, col in enumerate(st.columns(2)):
         selected_table = col.selectbox(f"Table {i}", tables)
-        hash = col.text_input(f"Hash {i}", "abc")
-        assert re.match("^[a-z]+$", hash), "Hash must contain only lowercase letters."
+        salt = col.text_input(f"Salt {i}", "abc")
+        assert re.match("^[a-z]+$", salt), "Hash must contain only lowercase letters."
         hashed_emails[i] = run_query(  # type: ignore
-            f"select concat(email, '{hash}') as whole_email, "
-            f"(sha2(concat(email, '{hash}'))) as email_hash from "
+            f"select email, "
+            f"(sha2(concat(email, '{salt}'))) as email_hash from "
             f"{DEMO_DB}.PUBLIC.{selected_table}",
             as_df=True,
         )
@@ -160,11 +165,12 @@ def double_bind_join_page():
         col.caption(f"`{len(hashed_emails[i])}` records from `{selected_table}`")  # type: ignore
 
     df1, df2 = hashed_emails
-    matching_hashes = len(set(df1.email_hash).intersection(df2.email_hash))  # type: ignore
-    if matching_hashes == 0:
+    matching_hashes = set(df1.email_hash).intersection(df2.email_hash)  # type: ignore
+    if len(matching_hashes) == 0:
         st.error("No matching hashes.")
     else:
-        st.info(f"Matching hashes: `{matching_hashes}`")
+        st.info(f"Matching hashes: `{len(matching_hashes)}`")
+        st.json(list(sorted(matching_hashes)))
 
 
 def main():
