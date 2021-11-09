@@ -65,6 +65,13 @@ def get_tables() -> pd.DataFrame:
     return st.session_state.tables
 
 
+def clear_state() -> None:
+    """Remove state variables."""
+    for attr in ("firstnames", "lastnames", "tables"):
+        if hasattr(st.session_state, attr):
+            delattr(st.session_state, attr)
+
+
 def add_table(name: str, table: pd.DataFrame) -> None:
     """Add a new table of contacts."""
     with st.spinner(f"Creating `{name}` with len `{len(table)}`."):
@@ -73,9 +80,7 @@ def add_table(name: str, table: pd.DataFrame) -> None:
         run_query(f"use schema PUBLIC", engine)
         run_query(f"drop table if exists PUBLIC.{name}", engine)
         table.to_sql(name, engine, schema="PUBLIC", index=False, method=pd_writer)
-        for attr in ("firstnames", "lastnames", "tables"):
-            if hasattr(st.session_state, attr):
-                delattr(st.session_state, attr)
+        clear_state()
 
 
 @st.experimental_memo(show_spinner=False)
@@ -107,46 +112,6 @@ def randomize_names(key: Key):
     names = load_names()
     random_names = random.sample(names[key.value], 10)  # type: ignore
     setattr(st.session_state, key.value, random_names)
-
-
-def database_form():
-    global table1, table2
-    databases = [row.name for row in run_query("SHOW DATABASES")]
-    with st.sidebar:
-        if "STREAMLIT_DEMO_DB" not in databases:
-            st.error(f":warning: Missing database `STREAMLIT_DEMO_DB`. Create it?")
-            if st.button(f"Create STREAMLIT_DEMO_DB"):
-                st.warning(f"Creating `STREAMLIT_DEMO_DB...`")
-                run_query(f"CREATE DATABASE STREAMLIT_DEMO_DB")
-                st.success(f"Created `STREAMLIT_DEMO_DB`")
-                # caching.clear_cache()
-                st.success("The cache has been cleared.")
-                st.button("Reload this page")
-            return
-
-        # show tables
-        tables = get_tables()
-        table1 = st.sidebar.selectbox("Choose Table 1", tables)
-        table2 = st.sidebar.selectbox("Choose Table 2", tables)
-
-        # advanced form, destroy database
-        with st.expander("Advanced"):
-            if st.button(f"DROP PUBLIC Tables"):
-                st.warning(f"Dropping all tables in schema `PUBLIC`")
-                engine = get_engine(st.secrets["snowflake"])
-                for table in tables:
-                    run_query(f"DROP TABLE STREAMLIT_DEMO_DB.PUBLIC.{table}", engine)
-                if st.button("Reload this page"):
-                    # st.caching.clear_cache()
-                    st.success("DELETE THIS: Just clicked the button.")
-
-            if st.button(f"Nuke STREAMLIT_DEMO_DB"):
-                st.warning(f"Destroying `STREAMLIT_DEMO_DB...`")
-                run_query(f"DROP DATABASE STREAMLIT_DEMO_DB CASCADE")
-                st.success(f"Destroyed `STREAMLIT_DEMO_DB`")
-                if st.button("Reload this page"):
-                    # st.caching.clear_cache()
-                    st.success("DELETE THIS: Just clicked the button.")
 
 
 def synthetic_data_page():
@@ -196,6 +161,24 @@ def synthetic_data_page():
         on_click=add_table,
         args=(table_name, synthetic_contacts),
     )
+
+
+def advanced_options_page():
+    """advanced form, destroy database"""
+    st.warning("These have not been properly debugged.")
+    return
+    if st.button(f"DROP PUBLIC Tables"):
+        st.warning(f"Dropping all tables in schema `PUBLIC`")
+        engine = get_engine(st.secrets["snowflake"])
+        for table in tables:
+            run_query(f"DROP TABLE STREAMLIT_DEMO_DB.PUBLIC.{table}", engine)
+        st.button("Reload this page")
+
+    if st.button(f"Nuke STREAMLIT_DEMO_DB"):
+        st.warning(f"Destroying `STREAMLIT_DEMO_DB...`")
+        run_query(f"DROP DATABASE STREAMLIT_DEMO_DB CASCADE")
+        st.success(f"Destroyed `STREAMLIT_DEMO_DB`")
+        st.button("Reload this page")
 
 
 def intro_page():
