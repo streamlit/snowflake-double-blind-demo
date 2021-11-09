@@ -8,26 +8,8 @@ from collections import namedtuple
 
 DEMO_DB = "STREAMLIT_DEMO_DB"
 
-# TODO: Would be good to see if we could use st.experimental_memo and
-# st.experimental_singleton if possible instead of st.cache.
-# https://docs.streamlit.io/library/api-reference/performance
-def _snowflake_cache(**cache_args):
-    """A specialized version of the st.cache decorator for Snowflake."""
-    return st.cache(
-        hash_funcs={
-            "_thread.RLock": lambda _: None,
-            "builtins.weakref": lambda _: None,
-        },
-        **cache_args,
-    )
 
-
-def _snowflake_singleton(**cache_args):
-    """A specialized version of the st.cache decorator for singleton objects."""
-    return _snowflake_cache(allow_output_mutation=True, ttl=600, **cache_args)
-
-
-@_snowflake_singleton()
+@st.experimental_singleton()
 def get_engine(snowflake_creds: Dict[str, str]):
     """Returns the snowflake connector engine. Uses st.cache to only run once."""
     url_template = "snowflake://{user}:{password}@{account}/{database}/{schema}?warehouse={warehouse}&role={role}"
@@ -67,7 +49,7 @@ def add_table(name: str, table: pd.DataFrame) -> None:
     """Add a new table of contacts."""
     with st.spinner(f"Creating `{name}` with len `{len(table)}`."):
         engine = get_engine(st.secrets["snowflake"])
-        run_query(f"use database STREAMLIT_DEMO_DB", engine)
+        run_query(f"use database {DEMO_DB}", engine)
         run_query(f"use schema PUBLIC", engine)
         run_query(f"drop table if exists PUBLIC.{name}", engine)
         table.to_sql(name, engine, schema="PUBLIC", index=False, method=pd_writer)
@@ -171,7 +153,7 @@ def double_bind_join_page():
         hashed_emails[i] = run_query(  # type: ignore
             f"select concat(email, '{hash}') as whole_email, "
             f"(sha2(concat(email, '{hash}'))) as email_hash from "
-            f"STREAMLIT_DEMO_DB.PUBLIC.{selected_table}",
+            f"{DEMO_DB}.PUBLIC.{selected_table}",
             as_df=True,
         )
         col.write(hashed_emails[i])
@@ -179,7 +161,10 @@ def double_bind_join_page():
 
     df1, df2 = hashed_emails
     matching_hashes = len(set(df1.email_hash).intersection(df2.email_hash))  # type: ignore
-    st.write("Matching hashes", matching_hashes)
+    if matching_hashes == 0:
+        st.error("No matching hashes.")
+    else:
+        st.info(f"Matching hashes: `{matching_hashes}`")
 
 
 def main():
