@@ -83,6 +83,8 @@ def intro_page():
     """Show the text the user first sees when they run the app."""
     with open("README.md") as readme:
         st.markdown(readme.read())
+    st.write("## :gear: Example use")
+    st.image("example.gif")
 
 
 def synthetic_data_page():
