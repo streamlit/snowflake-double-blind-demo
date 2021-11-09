@@ -168,14 +168,8 @@ def intro_page():
     with open("README.md") as readme:
         st.markdown(readme.read())
 
-    with st.expander("See the session state"):
-        st.write(st.session_state)
-        if "tables" in st.session_state:
-            st.write(st.session_state.tables)
-
 
 def double_bind_join_page():
-    # global table1, table2
     st.markdown("## Double-blind Join")
 
     tables = get_tables()
@@ -216,7 +210,6 @@ def main():
         "Intro": intro_page,
         "Synthetic data generator": synthetic_data_page,
         "Double-blind join": double_bind_join_page,
-        "Show the source code": None,
     }
     selected_mode_name = st.sidebar.selectbox("Select mode", list(modes))  # type: ignore
 
