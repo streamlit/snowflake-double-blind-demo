@@ -3,7 +3,7 @@ from enum import Enum
 
 # from snowflake.connector.connection import SnowflakeConnection
 from snowflake.connector.pandas_tools import pd_writer
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Set
 from collections import namedtuple
 
 DEMO_DB = "STREAMLIT_DEMO_DB"
@@ -62,10 +62,19 @@ def get_tables(database=DEMO_DB, schema="PUBLIC") -> pd.DataFrame:
     return pd.DataFrame(tables)[["table_name", "row_count"]]
 
 
+@st.experimental_memo()
+def create_unique_table_name(tables: Set[str]) -> str:
+    """Creates a table name not in the set of existing table names."""
+    suffix = 0
+    while (table_name := f"CONTACT_TABLE_{suffix}") in tables:
+        suffix += 1
+    return table_name
+
+
 ####################### SYNTHETHIC DATA APP
 
 
-@_snowflake_cache()
+@st.experimental_memo(max_entries=1)
 def load_names() -> Tuple[List[str], List[str]]:
     """Returns two lists (firstnames, lastnames) of example names."""
     with open("names.yaml") as name_file:
@@ -131,23 +140,24 @@ def synthetic_data_page():
     st.write("## Create synthetic data")
 
     # Show select boxes for the first and last names.
+    st.write("### :level_slider: Select names")
     names = load_names()
-
     name_types = [("first name", Key.FIRST_NAMES), ("last name", Key.LAST_NAMES)]
     for name_type, key in name_types:
-        if key not in st.session_state:
+        if key.value not in st.session_state:
             randomize_names(key)
         st.multiselect(f"Select {name_type}s", names[key.value], key=key.value)
         st.button(f"Randomize {name_type}s", on_click=randomize_names, args=(key,))
 
+    # Show a slider for the number of names
     n_firstnames = len(getattr(st.session_state, "firstnames"))
     n_lastnames = len(getattr(st.session_state, "lastnames"))
     max_rows = n_firstnames * n_lastnames
     assert max_rows > 0, "Must have a least one first and last name."
-
     n_rows = st.slider("Number of rows", 1, max_rows, min(max_rows, 50))
 
-    df = pd.DataFrame(
+    st.write("### :sleuth_or_spy: Data preview")
+    synthetic_contact_table = pd.DataFrame(
         random.sample(
             [
                 {
@@ -161,34 +171,17 @@ def synthetic_data_page():
             n_rows,
         )
     )
-    st.write(df)
+    st.write(synthetic_contact_table)
 
-    # TODO: determine max number of SAMPLE tables? now is 10
-    def make_table_name():
-        tables = get_tables()
-        print(tables)
-        table_name = f"ERROR"
-        for i in range(10):
-            table_name = f"SAMPLE_{i}"
-            if table_name not in tables:
-                break
-            if i == 9:
-                raise Exception(
-                    f"""
-            Reached maximum number of SAMPLE tables.
-            Please clear database or drop table {table_name}.
-          """
-                )
-        return table_name
-
-    table = make_table_name()
+    existing_tables = set(get_tables().table_name)
+    table = create_unique_table_name(existing_tables)
     if st.button(f'Create table "{table}"'):
-        st.warning(f"Creating `{table}` with len `{len(df)}`.")
+        st.warning(f"Creating `{table}` with len `{len(synthetic_contact_table)}`.")
         engine = get_engine(st.secrets["snowflake"])
         run_query(f"use database STREAMLIT_DEMO_DB", engine)
         run_query(f"use schema PUBLIC", engine)
         run_query(f"drop table if exists PUBLIC.{table}", engine)
-        df.to_sql(
+        synthetic_contact_table.to_sql(
             table,
             engine,
             schema="PUBLIC",
@@ -196,7 +189,6 @@ def synthetic_data_page():
             method=pd_writer,
         )
         st.success(f"Created table `{table}`!")
-        table = make_table_name()
 
 
 def intro_page():
