@@ -109,8 +109,6 @@ def randomize_names(key: Key):
     setattr(st.session_state, key.value, random_names)
 
 
-# TODO step 3:
-#  - This tests should be done
 def database_form():
     global table1, table2
     databases = [row.name for row in run_query("SHOW DATABASES")]
