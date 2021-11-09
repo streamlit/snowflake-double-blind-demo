@@ -209,22 +209,10 @@ def intro_page():
         if "tables" in st.session_state:
             st.write(st.session_state.tables)
 
-    # st.write(f"### This works... (`v{st.__version__}`)")
-    # x = 123
-    # st.write(x)
-    # st.text(type(x))
-    # st.write(type(x))
-
-    # st.write(f"### This doesn't... (`v{st.__version__}`)")
-    # x = pd.DataFrame([{"a": 1, "b": 2}, {"a": 3, "b": 4}])
-    # st.write(x)
-    # st.text(type(x))
-    # st.write(type(x))  # there something weird about this type
-
 
 def double_bind_join_page():
-    global table1, table2
-    st.markdown("## Double Bind Join")
+    # global table1, table2
+    st.markdown("## Double-blind Join")
 
     tables = get_tables()
     if len(tables) < 2:
@@ -233,6 +221,20 @@ def double_bind_join_page():
             "**Please select *Synthetic table generator* to create data.**"
         )
         return
+
+    selected_table_names = list(tables)
+    selected_table_names = [None, None]
+    for i, col in enumerate(st.columns(2)):
+        selected_table_names[i] = col.selectbox(f"Table {i}", tables, index=i)
+        df = run_query(
+            f"select email, "
+            f"(sha2(email)) as email_hash from "
+            f"STREAMLIT_DEMO_DB.PUBLIC.{selected_table_names[i]}",
+            as_df=True,
+        )
+        col.write(df)
+        col.caption(f"`{len(df)}` records from `{selected_table_names[i]}`")
+    return
 
     # tables = st.multiselect("Select tables to compare", tables, default=tables[:2])
 
@@ -266,25 +268,6 @@ def double_bind_join_page():
 
 def main():
     """Execution starts here."""
-    # Get the snowflake connector. Display an error if anything went wrong.
-    # try:
-    #     get_engine(st.secrets["snowflake"])
-    # except:
-    #     snowflake_tutorial = (
-    #         "https://docs.streamlit.io/en/latest/tutorial/snowflake.html"
-    #     )
-    #     st.sidebar.error(
-    #         f"""
-    #         Couldn't load your credentials.
-    #         Did you have a look at our
-    #         [tutorial on connecting to Snowflake]({snowflake_tutorial})?
-    #         """
-    #     )
-    #     # raise
-
-    # # initiate state
-    # st.session_state.databases = st.session_state.get("databases", [])
-
     # Get the database tables created by the user.
     tables = get_tables()
 
