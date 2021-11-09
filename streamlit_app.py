@@ -64,12 +64,6 @@ def get_tables() -> pd.DataFrame:
     return st.session_state.tables
 
 
-def clear_table_cache() -> None:
-    """Clears the cache so that we can see a new set of tables."""
-    if "tables" in st.session_state:
-        del st.session_state.tables  # type: ignore
-
-
 def add_table(name: str, table: pd.DataFrame) -> None:
     """Add a new table of contacts."""
     with st.spinner(f"Creating `{name}` with len `{len(table)}`."):
@@ -77,15 +71,8 @@ def add_table(name: str, table: pd.DataFrame) -> None:
         run_query(f"use database STREAMLIT_DEMO_DB", engine)
         run_query(f"use schema PUBLIC", engine)
         run_query(f"drop table if exists PUBLIC.{name}", engine)
-        table.to_sql(
-            name,
-            engine,
-            schema="PUBLIC",
-            index=False,
-            method=pd_writer,
-        )
-        # Clear the cache of firstnames, lastnames, and tables
-        for attr in ("firstnames", "lastnames", "tables", "blah"):
+        table.to_sql(name, engine, schema="PUBLIC", index=False, method=pd_writer)
+        for attr in ("firstnames", "lastnames", "tables"):
             if hasattr(st.session_state, attr):
                 delattr(st.session_state, attr)
 
