@@ -64,6 +64,32 @@ def get_tables() -> pd.DataFrame:
     return st.session_state.tables
 
 
+def clear_table_cache() -> None:
+    """Clears the cache so that we can see a new set of tables."""
+    if "tables" in st.session_state:
+        del st.session_state.tables  # type: ignore
+
+
+def add_table(name: str, table: pd.DataFrame) -> None:
+    """Add a new table of contacts."""
+    with st.spinner(f"Creating `{name}` with len `{len(table)}`."):
+        engine = get_engine(st.secrets["snowflake"])
+        run_query(f"use database STREAMLIT_DEMO_DB", engine)
+        run_query(f"use schema PUBLIC", engine)
+        run_query(f"drop table if exists PUBLIC.{name}", engine)
+        table.to_sql(
+            name,
+            engine,
+            schema="PUBLIC",
+            index=False,
+            method=pd_writer,
+        )
+        # Clear the cache of firstnames, lastnames, and tables
+        for attr in ("firstnames", "lastnames", "tables", "blah"):
+            if hasattr(st.session_state, attr):
+                delattr(st.session_state, attr)
+
+
 @st.experimental_memo(show_spinner=False)
 def create_unique_table_name(tables: Set[str]) -> str:
     """Creates a table name not in the set of existing table names."""
@@ -158,8 +184,9 @@ def synthetic_data_page():
     assert max_rows > 0, "Must have a least one first and last name."
     n_rows = st.slider("Number of rows", 1, max_rows, min(max_rows, 50))
 
+    # Show a preview of the synthetic contacts
     st.write("### :sleuth_or_spy: Data preview")
-    synthetic_contact_table = pd.DataFrame(
+    synthetic_contacts = pd.DataFrame(
         random.sample(
             [
                 {
@@ -173,49 +200,39 @@ def synthetic_data_page():
             n_rows,
         )
     )
-    st.write(synthetic_contact_table)
+    st.write(synthetic_contacts)
 
+    # Show a button to let the user create a new table
     existing_tables = set(get_tables().table_name)
-    table = create_unique_table_name(existing_tables)
-    if st.button(f'Create table "{table}"'):
-        st.warning(f"Creating `{table}` with len `{len(synthetic_contact_table)}`.")
-        engine = get_engine(st.secrets["snowflake"])
-        run_query(f"use database STREAMLIT_DEMO_DB", engine)
-        run_query(f"use schema PUBLIC", engine)
-        run_query(f"drop table if exists PUBLIC.{table}", engine)
-        synthetic_contact_table.to_sql(
-            table,
-            engine,
-            schema="PUBLIC",
-            index=False,
-            method=pd_writer,
-        )
-        st.success(f"Created table `{table}`!")
+    table_name = create_unique_table_name(existing_tables)
+    st.button(
+        f'Create table "{table_name}"',
+        on_click=add_table,
+        args=(table_name, synthetic_contacts),
+    )
 
 
 def intro_page():
     """Show the text the user first sees when they run the app."""
     with open("README.md") as readme:
         st.markdown(readme.read())
-    # with st.expander("See the session state"):
-    #     st.write(st.session_state)
-    #     if "tables" in st.session_state:
-    #         st.write(11)
-    #         st.write(type(11))
-    #         st.write(type(st.session_state.tables))
-    #         st.write(st.session_state.tables)
 
-    st.write(f"### This works... (`v{st.__version__}`)")
-    x = 123
-    st.write(x)
-    st.text(type(x))
-    st.write(type(x))
+    with st.expander("See the session state"):
+        st.write(st.session_state)
+        if "tables" in st.session_state:
+            st.write(st.session_state.tables)
 
-    st.write(f"### This doesn't... (`v{st.__version__}`)")
-    x = pd.DataFrame([{"a": 1, "b": 2}, {"a": 3, "b": 4}])
-    st.write(x)
-    st.text(type(x))
-    st.write(type(x))  # there something weird about this type
+    # st.write(f"### This works... (`v{st.__version__}`)")
+    # x = 123
+    # st.write(x)
+    # st.text(type(x))
+    # st.write(type(x))
+
+    # st.write(f"### This doesn't... (`v{st.__version__}`)")
+    # x = pd.DataFrame([{"a": 1, "b": 2}, {"a": 3, "b": 4}])
+    # st.write(x)
+    # st.text(type(x))
+    # st.write(type(x))  # there something weird about this type
 
 
 def double_bind_join_page():
