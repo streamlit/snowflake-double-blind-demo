@@ -1,7 +1,8 @@
-import yaml, random, streamlit as st, pandas as pd, sqlalchemy as sa
+import yaml, random, re
+import streamlit as st
+import pandas as pd
+import sqlalchemy as sa
 from enum import Enum
-
-# from snowflake.connector.connection import SnowflakeConnection
 from snowflake.connector.pandas_tools import pd_writer
 from typing import List, Tuple, Dict, Set
 from collections import namedtuple
@@ -222,48 +223,23 @@ def double_bind_join_page():
         )
         return
 
-    selected_table_names = list(tables)
-    selected_table_names = [None, None]
+    hashed_emails = [None, None]
     for i, col in enumerate(st.columns(2)):
-        selected_table_names[i] = col.selectbox(f"Table {i}", tables, index=i)
-        df = run_query(
-            f"select email, "
-            f"(sha2(email)) as email_hash from "
-            f"STREAMLIT_DEMO_DB.PUBLIC.{selected_table_names[i]}",
+        selected_table = col.selectbox(f"Table {i}", tables)
+        hash = col.text_input(f"Hash {i}", "abc")
+        assert re.match("^[a-z]+$", hash), "Hash must contain only lowercase letters."
+        hashed_emails[i] = run_query(  # type: ignore
+            f"select concat(email, '{hash}') as whole_email, "
+            f"(sha2(concat(email, '{hash}'))) as email_hash from "
+            f"STREAMLIT_DEMO_DB.PUBLIC.{selected_table}",
             as_df=True,
         )
-        col.write(df)
-        col.caption(f"`{len(df)}` records from `{selected_table_names[i]}`")
-    return
+        col.write(hashed_emails[i])
+        col.caption(f"`{len(hashed_emails[i])}` records from `{selected_table}`")  # type: ignore
 
-    # tables = st.multiselect("Select tables to compare", tables, default=tables[:2])
-
-    if not (table1 or table2):
-        return
-
-    df = pd.DataFrame([], columns=[])
-    with st.spinner(f"Getting data..."):
-        # TABLE1
-        df1 = run_query(
-            f"select (sha2(email || 'abc')) as email_hash from STREAMLIT_DEMO_DB.PUBLIC.{table1}",
-            as_df=True,
-        )
-        st.write(f"Got {len(df1)} records from Table 1: `{table1}`")
-
-        # TABLE2
-        df2 = run_query(
-            f"select sha2(email || 'abc') as email_hash from STREAMLIT_DEMO_DB.PUBLIC.{table2}",
-            as_df=True,
-        )
-        st.write(f"Got {len(df2)} records from Table 2: `{table2}`")
-
-    st.write("## df1", df1)
-    st.write("## df2", df2)
-    with st.spinner(f"Matching Hashes..."):
-        df = df1.join(df2.set_index("email_hash"), on="email_hash", how="inner")  # type: ignore
-        st.write(f"Found **{len(df)} matching emails** from two provided tables!")
-
-    st.dataframe(df, height=720)
+    df1, df2 = hashed_emails
+    matching_hashes = len(set(df1.email_hash).intersection(df2.email_hash))  # type: ignore
+    st.write("Matching hashes", matching_hashes)
 
 
 def main():
