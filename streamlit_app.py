@@ -35,18 +35,10 @@ def get_engine(snowflake_creds: Dict[str, str]):
     return sa.create_engine(url_template.format(**snowflake_creds), echo=False)
 
 
-# @st.cache(ttl=600, **SNOWFLAKE_CACHE_ARGS)
-# @_snowflake_cache(ttl=600)
 def run_query(query: str, as_df=False):
-    """Perform query. Uses st.cache to only rerun when the query changes
-    after 10 min."""
+    """Perform query."""
     conn = get_engine(st.secrets["snowflake"])
-    try:
-        result = conn.execute(query)
-    except Exception as E:
-        raise Exception(f"{E}\n\nError running SQL query:\n{query}")
-
-    # namedtuples allow property and index reference
+    result = conn.execute(query)
     columns = list(result.keys())  # type: ignore
     Row = namedtuple("Row", columns)
     rows = [Row(*row) for row in result.fetchall()]  # type: ignore
@@ -92,9 +84,6 @@ def create_unique_table_name(tables: Set[str]) -> str:
     return table_name
 
 
-####################### SYNTHETHIC DATA APP
-
-
 @st.experimental_memo(max_entries=1, show_spinner=False)
 def load_names() -> Tuple[List[str], List[str]]:
     """Returns two lists (firstnames, lastnames) of example names."""
@@ -102,16 +91,11 @@ def load_names() -> Tuple[List[str], List[str]]:
         return yaml.safe_load(name_file)
 
 
-class Key(Enum):
-    FIRST_NAMES = "firstnames"
-    LAST_NAMES = "lastnames"
-
-
-def randomize_names(key: Key):
+def randomize_names(key: str):
     """Randomize either the list of firstnames or lastnames."""
     names = load_names()
-    random_names = random.sample(names[key.value], 10)  # type: ignore
-    setattr(st.session_state, key.value, random_names)
+    random_names = random.sample(names[key], 10)  # type: ignore
+    setattr(st.session_state, key, random_names)
 
 
 def synthetic_data_page():
@@ -121,7 +105,7 @@ def synthetic_data_page():
     # Show select boxes for the first and last names.
     st.write("### :level_slider: Select names")
     names = load_names()
-    name_types = [("first name", Key.FIRST_NAMES), ("last name", Key.LAST_NAMES)]
+    name_types = [("first name", "firstnames"), ("last name", "lastnames")]
     for name_type, key in name_types:
         if key.value not in st.session_state:
             randomize_names(key)
