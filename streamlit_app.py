@@ -55,14 +55,16 @@ def run_query(query: str, as_df=False):
     return rows
 
 
-def get_tables(database=DEMO_DB, schema="PUBLIC") -> pd.DataFrame:
+def get_tables() -> pd.DataFrame:
     """Returns the list of table names from the demo database."""
-    tables = run_query(f"SELECT * FROM {database}.INFORMATION_SCHEMA.TABLES")
-    tables = [t for t in tables if t.table_schema.lower() == schema.lower()]
-    return pd.DataFrame(tables)[["table_name", "row_count"]]
+    if "tables" not in st.session_state:
+        tables = run_query(f"SELECT * FROM {DEMO_DB}.INFORMATION_SCHEMA.TABLES")
+        tables = [t for t in tables if t.table_schema.lower() == "public"]
+        st.session_state.tables = pd.DataFrame(tables)[["table_name", "row_count"]]
+    return st.session_state.tables
 
 
-@st.experimental_memo()
+@st.experimental_memo(show_spinner=False)
 def create_unique_table_name(tables: Set[str]) -> str:
     """Creates a table name not in the set of existing table names."""
     suffix = 0
@@ -74,7 +76,7 @@ def create_unique_table_name(tables: Set[str]) -> str:
 ####################### SYNTHETHIC DATA APP
 
 
-@st.experimental_memo(max_entries=1)
+@st.experimental_memo(max_entries=1, show_spinner=False)
 def load_names() -> Tuple[List[str], List[str]]:
     """Returns two lists (firstnames, lastnames) of example names."""
     with open("names.yaml") as name_file:
@@ -195,6 +197,25 @@ def intro_page():
     """Show the text the user first sees when they run the app."""
     with open("README.md") as readme:
         st.markdown(readme.read())
+    # with st.expander("See the session state"):
+    #     st.write(st.session_state)
+    #     if "tables" in st.session_state:
+    #         st.write(11)
+    #         st.write(type(11))
+    #         st.write(type(st.session_state.tables))
+    #         st.write(st.session_state.tables)
+
+    st.write(f"### This works... (`v{st.__version__}`)")
+    x = 123
+    st.write(x)
+    st.text(type(x))
+    st.write(type(x))
+
+    st.write(f"### This doesn't... (`v{st.__version__}`)")
+    x = pd.DataFrame([{"a": 1, "b": 2}, {"a": 3, "b": 4}])
+    st.write(x)
+    st.text(type(x))
+    st.write(type(x))  # there something weird about this type
 
 
 def double_bind_join_page():
