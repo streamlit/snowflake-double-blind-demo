@@ -1,4 +1,6 @@
 # def advanced_options_page():
+
+
 #     """advanced form, destroy database"""
 #     st.warning("These have not been properly debugged.")
 #     return
@@ -14,3 +16,9 @@
 #         run_query(f"DROP DATABASE STREAMLIT_DEMO_DB CASCADE")
 #         st.success(f"Destroyed `STREAMLIT_DEMO_DB`")
 #         st.button("Reload this page")
+
+
+# with st.expander("See the session state"):
+#     st.write(st.session_state)
+#     if "tables" in st.session_state:
+#         st.write(st.session_state.tables)
