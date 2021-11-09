@@ -2,7 +2,6 @@ import yaml, random, re
 import streamlit as st
 import pandas as pd
 import sqlalchemy as sa
-from enum import Enum
 from snowflake.connector.pandas_tools import pd_writer
 from typing import List, Tuple, Dict, Set
 from collections import namedtuple
@@ -107,9 +106,9 @@ def synthetic_data_page():
     names = load_names()
     name_types = [("first name", "firstnames"), ("last name", "lastnames")]
     for name_type, key in name_types:
-        if key.value not in st.session_state:
+        if key not in st.session_state:
             randomize_names(key)
-        st.multiselect(f"Select {name_type}s", names[key.value], key=key.value)
+        st.multiselect(f"Select {name_type}s", names[key], key=key)
         st.button(f"Randomize {name_type}s", on_click=randomize_names, args=(key,))
 
     # Show a slider for the number of names
