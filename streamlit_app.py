@@ -175,9 +175,9 @@ def main():
     # Show a browser for what functions they could run.
     st.sidebar.success("Select a mode below.")
     modes = {
-        "Intro": intro_page,
-        "Synthetic data generator": synthetic_data_page,
-        "Double-blind join": double_bind_join_page,
+        "🌟 Intro": intro_page,
+        "🤖 Synthetic data generator": synthetic_data_page,
+        "🙈 Double-blind join": double_bind_join_page,
     }
     selected_mode_name = st.sidebar.selectbox("Select mode", list(modes))  # type: ignore
 
