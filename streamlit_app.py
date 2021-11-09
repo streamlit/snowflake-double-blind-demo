@@ -60,8 +60,10 @@ def add_table(name: str, table: pd.DataFrame) -> None:
 def create_unique_table_name(tables: Set[str]) -> str:
     """Creates a table name not in the set of existing table names."""
     suffix = 0
-    while (table_name := f"CONTACTS_{suffix}") in tables:
+    table_name = f"CONTACTS_{suffix}"
+    while table_name in tables:
         suffix += 1
+        table_name = f"CONTACTS_{suffix}"
     return table_name
 
 
