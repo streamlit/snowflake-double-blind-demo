@@ -18,7 +18,7 @@ Note that:
    required **less than 200 lines of code!**
 
 **This is the magic of Streamlit!** Such interactions cannot be implemented in Retool or
-Tableau wihout torturing the underlying abstractins. By contrast, Streamlit presents an
+Tableau without torturing the underlying abstractions. By contrast, Streamlit presents an
 incredibly flexible language for expressing rich data apps in the ML age. 
 
 This is why Streamlit is actively deployed over half the Fortune 50!  
